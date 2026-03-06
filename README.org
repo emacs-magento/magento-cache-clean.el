@@ -1,0 +1,92 @@
+#+title: magento-cache-clean.el
+#+author: Piotr
+
+Emacs integration for [[https://github.com/mage-os/magento-cache-clean][mage-os/magento-cache-clean]], a file watcher based cache cleaner for Magento 2.
+
+* Features
+
+- One-shot cache cleaning via =magento-cache-clean= (compilation buffer)
+- Watch mode via =magento-cache-clean-watch= (comint with single-key hotkeys)
+- Transient UI via =magento-cache-clean-transient=
+- Auto-detection of Magento root directory (=app/etc/env.php=)
+- Per-project buffers via =project.el=
+- Per-project configuration via =.dir-locals.el=
+- Propagates =envrc= / =direnv= environment to child processes
+
+* Requirements
+
+- Emacs 30.1+
+- [[https://github.com/mage-os/magento-cache-clean][cache-clean]] installed and on =PATH=
+
+* Installation
+
+** use-package with vc
+
+#+begin_src emacs-lisp
+(use-package magento-cache-clean
+  :vc (:url "https://github.com/emacs-magento/magento-cache-clean.el"))
+#+end_src
+
+** Manual
+
+Clone the repository and add it to your =load-path=:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/magento-cache-clean.el")
+(require 'magento-cache-clean)
+#+end_src
+
+* Usage
+
+** Transient interface
+
+Run =M-x magento-cache-clean-transient= to open the transient UI where you can:
+
+- Select verbosity level (silent / verbose / debug)
+- Toggle =--keep-generated= and =--no-flood-guard= flags
+- Select cache types to clean
+- Run a one-shot clean or start watch mode
+
+** Direct commands
+
+- =M-x magento-cache-clean= -- clean caches once
+- =M-x magento-cache-clean-watch= -- start watch mode (comint)
+- =M-x magento-cache-clean-watch-stop= -- stop the watcher
+
+** Watch mode hotkeys
+
+In the watch buffer, single keys are sent directly to the process:
+
+| Key | Action                           |
+|-----+----------------------------------|
+| =c= | Clean config cache               |
+| =b= | Clean block_html cache           |
+| =l= | Clean layout cache               |
+| =t= | Clean translate cache            |
+| =f= | Clean full_page cache            |
+| =v= | Clean view cache                 |
+| =m= | Clean misc cache                 |
+| =a= | Clean all caches                 |
+| =G= | Clean generated code             |
+| =I= | Clean integration test sandboxes |
+| =F= | Clean frontend static content    |
+| =A= | Clean adminhtml static content   |
+
+=C-c C-c= stops the watcher.
+
+* Customization
+
+| Variable                            | Description                      | Default         |
+|-------------------------------------+----------------------------------+-----------------|
+| =magento-cache-clean-executable=    | Path to the cache-clean binary   | ="cache-clean"= |
+| =magento-cache-clean-directory=     | Magento root (nil = auto-detect) | =nil=           |
+
+Both variables are safe for use in =.dir-locals.el=:
+
+#+begin_src emacs-lisp
+((nil . ((magento-cache-clean-directory . "/path/to/magento"))))
+#+end_src
+
+* License
+
+GPL-3.0-or-later. See [[file:LICENSE][LICENSE]].
