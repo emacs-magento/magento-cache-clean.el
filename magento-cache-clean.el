@@ -266,6 +266,10 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   "Return the heading of `magento-cache-clean-transient'."
   (format "Magento dir: %s" (abbreviate-file-name (transient-scope))))
 
+(defun magento-cache-clean--transient-watching-p ()
+  "Return non-nil if a watcher runs for the menu's Magento root."
+  (magento-cache-clean--watch-process (transient-scope)))
+
 ;;;###autoload (autoload 'magento-cache-clean-transient "magento-cache-clean" nil t)
 (transient-define-prefix magento-cache-clean-transient (&optional choose-root)
   "Transient interface for magento-cache-clean.
@@ -281,8 +285,13 @@ argument CHOOSE-ROOT, or when it can't be detected, prompt for it."
     (magento-cache-clean--infix-cache-types)]
    ["Actions"
     ("c" "Clean" magento-cache-clean)
-    ("w" "Watch" magento-cache-clean-watch)
-    ("s" "Stop watch" magento-cache-clean-watch-stop)]]
+    ("w" magento-cache-clean-watch
+     :description (lambda ()
+                    (if (magento-cache-clean--transient-watching-p)
+                        "Restart watch"
+                      "Watch")))
+    ("s" "Stop watch" magento-cache-clean-watch-stop
+     :inapt-if-not magento-cache-clean--transient-watching-p)]]
   (interactive "P")
   (transient-setup 'magento-cache-clean-transient nil nil
                    :scope (if choose-root

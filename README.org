@@ -49,7 +49,7 @@ can't be detected, you are prompted for it).  In the menu you can:
 - Toggle =--keep-generated= and =--no-flood-guard= flags
 - Pick a =--file-list= file
 - Enter cache types to clean (comma-separated; any type name is accepted)
-- Run a one-shot clean or start watch mode
+- Run a one-shot clean, start or restart watch mode, or stop the watcher
 
 Save defaults with =C-x s=; =M-x magento-cache-clean= and =M-x magento-cache-clean-watch= use them when called outside the menu.
 
