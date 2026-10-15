@@ -68,24 +68,6 @@ When nil, auto-detected by searching for app/etc/env.php."
 
 ;;; Cache types
 
-(defconst magento-cache-clean-types
-  '("config"
-    "layout"
-    "block_html"
-    "collections"
-    "reflection"
-    "db_ddl"
-    "compiled_config"
-    "eav"
-    "customer_notification"
-    "config_integration"
-    "config_integration_api"
-    "config_webservice"
-    "full_page"
-    "translate")
-  "Magento 2 core cache types.
-Only used for completion when the project's env.php can't be read.")
-
 (defun magento-cache-clean--env-php-types (root)
   "Return the cache types listed under `cache_types' in ROOT's env.php.
 Return nil if the file or the section is missing."
@@ -106,9 +88,8 @@ Return nil if the file or the section is missing."
 (defun magento-cache-clean--cache-types ()
   "Return cache type completion candidates for the current Magento root.
 cache-clean accepts any cache type name, so these are only suggestions."
-  (or (when-let* ((root (magento-cache-clean--root)))
-        (magento-cache-clean--env-php-types root))
-      magento-cache-clean-types))
+  (when-let* ((root (magento-cache-clean--root)))
+    (magento-cache-clean--env-php-types root)))
 
 ;;; Directory detection
 

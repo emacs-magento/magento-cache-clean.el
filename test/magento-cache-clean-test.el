@@ -155,18 +155,12 @@ return array (
     (should (equal '("config" "layout")
                    (magento-cache-clean--env-php-types root)))))
 
-(ert-deftest magento-cache-clean-test-cache-types-fallback ()
-  "Fall back to the core list when env.php has no cache_types."
+(ert-deftest magento-cache-clean-test-cache-types-none-without-section ()
+  "No suggestions when env.php has no cache_types; any name can be typed."
   (magento-cache-clean-test--with-root root
     (let ((default-directory root)
           (magento-cache-clean-directory nil))
-      (should (equal magento-cache-clean-types
-                     (magento-cache-clean--cache-types))))))
-
-(ert-deftest magento-cache-clean-test-cache-types-no-duplicates ()
-  "No duplicate core cache types."
-  (should (equal (length magento-cache-clean-types)
-                 (length (delete-dups (copy-sequence magento-cache-clean-types))))))
+      (should-not (magento-cache-clean--cache-types)))))
 
 ;;; Buffers
 
