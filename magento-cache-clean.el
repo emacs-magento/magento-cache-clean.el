@@ -66,31 +66,6 @@ When nil, auto-detected by searching for app/etc/env.php."
                  (directory :tag "Directory"))
   :safe (lambda (v) (or (null v) (stringp v))))
 
-;;; Cache types
-
-(defun magento-cache-clean--env-php-types (root)
-  "Return the cache types listed under `cache_types' in ROOT's env.php.
-Return nil if the file or the section is missing."
-  (let ((file (expand-file-name "app/etc/env.php" root)))
-    (when (file-readable-p file)
-      (with-temp-buffer
-        (insert-file-contents file)
-        (when (re-search-forward
-               "['\"]cache_types['\"][[:space:]]*=>[[:space:]]*\\(?:\\[\\|array[[:space:]]*(\\)"
-               nil t)
-          (let ((end (save-excursion (re-search-forward "[])]" nil t)))
-                types)
-            (while (re-search-forward
-                    "['\"]\\([[:alnum:]_]+\\)['\"][[:space:]]*=>" end t)
-              (push (match-string 1) types))
-            (nreverse types)))))))
-
-(defun magento-cache-clean--cache-types ()
-  "Return cache type completion candidates for the current Magento root.
-cache-clean accepts any cache type name, so these are only suggestions."
-  (when-let* ((root (magento-cache-clean--root)))
-    (magento-cache-clean--env-php-types root)))
-
 ;;; Directory detection
 
 (defun magento-cache-clean--detect-directory ()
@@ -242,8 +217,7 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   :key "-t"
   :description "Cache types"
   :argument "--types="
-  :multi-value 'repeat
-  :choices #'magento-cache-clean--cache-types)
+  :multi-value 'repeat)
 
 ;;;###autoload (autoload 'magento-cache-clean-transient "magento-cache-clean" nil t)
 (transient-define-prefix magento-cache-clean-transient ()

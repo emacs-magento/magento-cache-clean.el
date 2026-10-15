@@ -44,7 +44,7 @@ Run =M-x magento-cache-clean-transient= to open the transient UI where you can:
 
 - Select verbosity level (silent / verbose / debug)
 - Toggle =--keep-generated= and =--no-flood-guard= flags
-- Select cache types to clean (suggested from =cache_types= in =app/etc/env.php=; any name is accepted)
+- Enter cache types to clean (comma-separated; any type name is accepted)
 - Run a one-shot clean or start watch mode
 
 Save defaults with =C-x s=; =M-x magento-cache-clean= and =M-x magento-cache-clean-watch= use them when called outside the menu.

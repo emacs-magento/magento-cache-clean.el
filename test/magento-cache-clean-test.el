@@ -123,45 +123,6 @@ Return its absolute path."
                            (magento-cache-clean--directory)))))
       (delete-directory temp-dir t))))
 
-;;; Cache types
-
-(ert-deftest magento-cache-clean-test-env-php-types-short-array ()
-  "Read cache types from env.php using short array syntax."
-  (magento-cache-clean-test--with-root root
-    (write-region "<?php
-return [
-    'cache' => ['frontend' => ['default' => ['id_prefix' => 'abc_']]],
-    'cache_types' => [
-        'config' => 1,
-        'target_rule' => 1,
-        'two_factor_authentication_codes' => 0
-    ],
-    'install' => ['date' => 'Mon, 01 Jan 2024']
-];" nil (expand-file-name "app/etc/env.php" root))
-    (should (equal '("config" "target_rule" "two_factor_authentication_codes")
-                   (magento-cache-clean--env-php-types root)))))
-
-(ert-deftest magento-cache-clean-test-env-php-types-long-array ()
-  "Read cache types from env.php using array() syntax."
-  (magento-cache-clean-test--with-root root
-    (write-region "<?php
-return array (
-  'cache_types' => array (
-    \"config\" => 1,
-    \"layout\" => 1,
-  ),
-  'x' => 1,
-);" nil (expand-file-name "app/etc/env.php" root))
-    (should (equal '("config" "layout")
-                   (magento-cache-clean--env-php-types root)))))
-
-(ert-deftest magento-cache-clean-test-cache-types-none-without-section ()
-  "No suggestions when env.php has no cache_types; any name can be typed."
-  (magento-cache-clean-test--with-root root
-    (let ((default-directory root)
-          (magento-cache-clean-directory nil))
-      (should-not (magento-cache-clean--cache-types)))))
-
 ;;; Buffers
 
 (ert-deftest magento-cache-clean-test-buffer-name-per-root ()
