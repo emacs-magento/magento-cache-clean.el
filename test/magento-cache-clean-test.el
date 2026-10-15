@@ -78,6 +78,20 @@ Return its absolute path."
                    (magento-cache-clean--transient-to-cli
                     (ensure-list (transient-infix-value obj)))))))
 
+;;; Command line
+
+(ert-deftest magento-cache-clean-test-command ()
+  "The command line has the executable, the root and the args."
+  (let ((magento-cache-clean-executable "cache-clean"))
+    (should (equal '("cache-clean" "-d" "/a/src/" "config")
+                   (magento-cache-clean--command "/a/src/" '("config"))))))
+
+(ert-deftest magento-cache-clean-test-command-remote-root ()
+  "A remote root is passed to cache-clean as its local name."
+  (let ((magento-cache-clean-executable "cache-clean"))
+    (should (equal '("cache-clean" "-d" "/var/www/")
+                   (magento-cache-clean--command "/ssh:host:/var/www/" nil)))))
+
 ;;; Directory detection
 
 (ert-deftest magento-cache-clean-test-detect-directory-found ()

@@ -9,6 +9,7 @@ Emacs integration for [[https://github.com/mage-os/magento-cache-clean][mage-os/
 - Watch mode via =magento-cache-clean-watch= (comint; keys go straight to cache-clean)
 - Transient UI via =magento-cache-clean-transient=
 - Auto-detection of Magento root directory (=app/etc/env.php=)
+- Works on remote projects (TRAMP, e.g. =/docker:=)
 - One output buffer per Magento root
 - Per-project configuration via =.dir-locals.el=
 - Propagates =envrc= / =direnv= environment to child processes

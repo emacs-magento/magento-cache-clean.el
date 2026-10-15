@@ -107,6 +107,11 @@ Outside the transient this is its saved or default value."
   (magento-cache-clean--transient-to-cli
    (transient-args 'magento-cache-clean-transient)))
 
+(defun magento-cache-clean--command (root args)
+  "Return the cache-clean command line for ROOT and ARGS as a list.
+ROOT may be remote; cache-clean gets its local name."
+  `(,magento-cache-clean-executable "-d" ,(file-local-name root) ,@args))
+
 ;;; Buffers
 
 (defun magento-cache-clean--buffer-name (root &optional watch)
@@ -162,7 +167,7 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   (let* ((root (magento-cache-clean--directory))
          (name (magento-cache-clean--buffer-name root))
          (command (mapconcat #'shell-quote-argument
-                             `(,magento-cache-clean-executable "-d" ,root ,@args)
+                             (magento-cache-clean--command root args)
                              " "))
          ;; `compilation-start' inherits this buffer's environment.
          (default-directory root))
@@ -176,7 +181,8 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   (let* ((root (magento-cache-clean--directory))
          (env process-environment)
          (path exec-path)
-         (buf (get-buffer-create (magento-cache-clean--buffer-name root t))))
+         (buf (get-buffer-create (magento-cache-clean--buffer-name root t)))
+         (command (magento-cache-clean--command root (cons "--watch" args))))
     (when (and (get-buffer-process buf)
                (not (yes-or-no-p "Watch process already running.  Restart? ")))
       (user-error "Watch process already running"))
@@ -188,8 +194,7 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
       (setq-local process-environment env
                   exec-path path)
       ;; `comint-exec' deletes any process still running in BUF.
-      (comint-exec buf "magento-cache-clean" magento-cache-clean-executable
-                   nil `("-d" ,root "--watch" ,@args))
+      (comint-exec buf "magento-cache-clean" (car command) nil (cdr command))
       (set-process-query-on-exit-flag (get-buffer-process buf) nil))
     (display-buffer buf)
     buf))
