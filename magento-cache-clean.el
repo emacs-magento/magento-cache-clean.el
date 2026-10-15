@@ -54,10 +54,10 @@
   :group 'tools
   :prefix "magento-cache-clean-")
 
+;; Not marked safe: a .dir-locals.el could otherwise run any program.
 (defcustom magento-cache-clean-executable "cache-clean"
   "Path to the cache-clean executable."
-  :type 'string
-  :safe #'stringp)
+  :type 'string)
 
 (defcustom magento-cache-clean-directory nil
   "Magento root directory.

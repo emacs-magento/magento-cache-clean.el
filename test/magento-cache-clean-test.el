@@ -293,11 +293,10 @@ Return its absolute path."
 
 ;;; Safe local variables
 
-(ert-deftest magento-cache-clean-test-executable-safe-local ()
-  "Executable is safe as a dir-local when string."
-  (should (safe-local-variable-p 'magento-cache-clean-executable "cache-clean"))
-  (should (safe-local-variable-p 'magento-cache-clean-executable "/usr/bin/cache-clean"))
-  (should-not (safe-local-variable-p 'magento-cache-clean-executable 42)))
+(ert-deftest magento-cache-clean-test-executable-not-safe-local ()
+  "Executable is never safe as a dir-local, since it is run as is."
+  (should-not (safe-local-variable-p 'magento-cache-clean-executable "cache-clean"))
+  (should-not (safe-local-variable-p 'magento-cache-clean-executable "/tmp/evil")))
 
 (ert-deftest magento-cache-clean-test-directory-safe-local ()
   "Directory is safe as a dir-local when string or nil."

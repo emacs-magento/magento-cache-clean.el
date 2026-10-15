@@ -77,11 +77,15 @@ the watcher starts; see the [[https://github.com/mage-os/magento-cache-clean#hot
 | =magento-cache-clean-executable=    | Path to the cache-clean binary   | ="cache-clean"= |
 | =magento-cache-clean-directory=     | Magento root (nil = auto-detect) | =nil=           |
 
-Both variables are safe for use in =.dir-locals.el=:
+=magento-cache-clean-directory= is safe for use in =.dir-locals.el=:
 
 #+begin_src emacs-lisp
 ((nil . ((magento-cache-clean-directory . "/path/to/magento"))))
 #+end_src
+
+=magento-cache-clean-executable= is not marked safe, since a
+=.dir-locals.el= could otherwise run any program.  Emacs asks before
+applying it; answer =!= to remember the value.
 
 * License
 
