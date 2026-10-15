@@ -104,7 +104,7 @@ Only non-nil while a command runs from that menu."
        (transient-scope)))
 
 (defun magento-cache-clean--directory ()
-  "Return the Magento root a command runs in, prompting if needed."
+  "Return the Magento root to run a command in, prompting if needed."
   (or (magento-cache-clean--menu-root)
       (magento-cache-clean--root t)))
 
@@ -315,7 +315,7 @@ one of the running watchers read in the minibuffer."
   (format "Magento dir: %s" (abbreviate-file-name (transient-scope))))
 
 (defun magento-cache-clean--transient-watching-p ()
-  "Return non-nil if a watcher runs for the menu's Magento root."
+  "Return non-nil if the menu's Magento root has a running watcher."
   (magento-cache-clean--watch-process (transient-scope)))
 
 ;;;###autoload (autoload 'magento-cache-clean-transient "magento-cache-clean" nil t)
