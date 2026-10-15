@@ -123,11 +123,13 @@ When WATCH is non-nil, return the watch buffer name."
           (if watch "-watch" "")
           (abbreviate-file-name (directory-file-name root))))
 
-(defun magento-cache-clean--watch-process ()
-  "Return the watch process for the current buffer's Magento root, or nil."
-  (if (derived-mode-p 'magento-cache-clean-watch-mode)
+(defun magento-cache-clean--watch-process (&optional root)
+  "Return the watch process for Magento ROOT, or nil.
+ROOT defaults to the current watch buffer's root, else the current
+buffer's root."
+  (if (and (not root) (derived-mode-p 'magento-cache-clean-watch-mode))
       (get-buffer-process (current-buffer))
-    (when-let* ((root (magento-cache-clean--root))
+    (when-let* ((root (or root (magento-cache-clean--root)))
                 (buf (get-buffer (magento-cache-clean--buffer-name root t))))
       (get-buffer-process buf))))
 
@@ -141,6 +143,9 @@ empty.  Add entries to make parts of the output clickable.")
 (define-compilation-mode magento-cache-clean-mode "MagentoCacheClean"
   "Major mode for one-shot magento-cache-clean output."
   (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter nil t))
+
+(defvar-local magento-cache-clean--watch-args nil
+  "Command line arguments the watch process in this buffer was started with.")
 
 (defun magento-cache-clean-watch-send-key ()
   "Send the key just pressed to the watch process.
@@ -159,8 +164,32 @@ cache-clean reads stdin in raw mode and handles the key itself."
   "Major mode for magento-cache-clean watch buffers.
 Printable keys are sent straight to the cache-clean process, which
 handles them as hotkeys; see the cache-clean README for the list.
+\\[revert-buffer] restarts the watcher with the same arguments.
 
-\\{magento-cache-clean-watch-mode-map}")
+\\{magento-cache-clean-watch-mode-map}"
+  (setq-local revert-buffer-function
+              (lambda (&rest _) (magento-cache-clean-watch-restart))))
+
+(defun magento-cache-clean--watch-start (root args)
+  "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
+The process inherits the current buffer's environment and variable
+`exec-path'.  Any watcher already running for ROOT is restarted."
+  (let ((env process-environment)
+        (path exec-path)
+        (buf (get-buffer-create (magento-cache-clean--buffer-name root t)))
+        (command (magento-cache-clean--command root (cons "--watch" args))))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'magento-cache-clean-watch-mode)
+        (magento-cache-clean-watch-mode))
+      ;; Set after the mode change, which kills local variables.
+      (setq default-directory root)
+      (setq-local process-environment env
+                  exec-path path)
+      (setq magento-cache-clean--watch-args args)
+      ;; `comint-exec' deletes any process still running in BUF.
+      (comint-exec buf "magento-cache-clean" (car command) nil (cdr command))
+      (set-process-query-on-exit-flag (get-buffer-process buf) nil))
+    buf))
 
 ;;; Commands
 
@@ -183,26 +212,19 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   "Start cache-clean in watch mode with command line ARGS.
 Interactively, ARGS come from `magento-cache-clean-transient'."
   (interactive (list (magento-cache-clean--arguments)))
-  (let* ((root (magento-cache-clean--directory))
-         (env process-environment)
-         (path exec-path)
-         (buf (get-buffer-create (magento-cache-clean--buffer-name root t)))
-         (command (magento-cache-clean--command root (cons "--watch" args))))
-    (when (and (get-buffer-process buf)
+  (let ((root (magento-cache-clean--directory)))
+    (when (and (magento-cache-clean--watch-process root)
                (not (yes-or-no-p "Watch process already running.  Restart? ")))
       (user-error "Watch process already running"))
-    (with-current-buffer buf
-      (unless (derived-mode-p 'magento-cache-clean-watch-mode)
-        (magento-cache-clean-watch-mode))
-      ;; Set after the mode change, which kills local variables.
-      (setq default-directory root)
-      (setq-local process-environment env
-                  exec-path path)
-      ;; `comint-exec' deletes any process still running in BUF.
-      (comint-exec buf "magento-cache-clean" (car command) nil (cdr command))
-      (set-process-query-on-exit-flag (get-buffer-process buf) nil))
-    (display-buffer buf)
-    buf))
+    (let ((buf (magento-cache-clean--watch-start root args)))
+      (display-buffer buf)
+      buf)))
+
+(defun magento-cache-clean-watch-restart ()
+  "Restart the watcher in the current watch buffer with the same arguments."
+  (interactive nil magento-cache-clean-watch-mode)
+  (magento-cache-clean--watch-start default-directory
+                                    magento-cache-clean--watch-args))
 
 ;;;###autoload
 (defun magento-cache-clean-watch-stop ()

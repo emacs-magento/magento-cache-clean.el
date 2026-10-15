@@ -56,6 +56,8 @@ Save defaults with =C-x s=; =M-x magento-cache-clean= and =M-x magento-cache-cle
 - =M-x magento-cache-clean= -- clean caches once
 - =M-x magento-cache-clean-watch= -- start watch mode (comint)
 - =M-x magento-cache-clean-watch-stop= -- stop the watcher
+- =M-x magento-cache-clean-watch-restart= (or =M-x revert-buffer=) in a watch
+  buffer -- restart it with the same arguments
 
 From Lisp, pass cache-clean command line arguments:
 

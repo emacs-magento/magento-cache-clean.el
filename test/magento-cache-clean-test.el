@@ -319,6 +319,27 @@ Return its absolute path."
             (should (search-forward "warn" nil t)))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-watch-restart-keeps-args ()
+  "Restarting from the watch buffer reuses the root and args."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable
+             root "echo \"ARGS=$*\"; exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch '("config"))))
+      (unwind-protect
+          (with-current-buffer buf
+            (let ((first (get-buffer-process buf)))
+              (erase-buffer)
+              (revert-buffer)
+              (should-not (eq first (get-buffer-process buf)))
+              (magento-cache-clean-test--wait-for-output
+               buf (regexp-quote (format "ARGS=-d %s --watch config" root)))
+              (should (string-search (format "ARGS=-d %s --watch config" root)
+                                     (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 ;;; Error regexps
 
 (ert-deftest magento-cache-clean-test-error-regexps-customizable ()
