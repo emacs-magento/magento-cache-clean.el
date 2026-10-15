@@ -1,8 +1,8 @@
 ;;; magento-cache-clean.el --- Emacs integration for magento-cache-clean -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2026  Piotr
+;; Copyright (C) 2026  Piotr Kwiecinski
 
-;; Author: Piotr
+;; Author: Piotr Kwiecinski
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "30.1"))
 ;; Keywords: tools, processes

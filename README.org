@@ -1,5 +1,5 @@
 #+title: magento-cache-clean.el
-#+author: Piotr
+#+author: Piotr Kwiecinski
 
 Emacs integration for [[https://github.com/mage-os/magento-cache-clean][mage-os/magento-cache-clean]], a file watcher based cache cleaner for Magento 2.
 
