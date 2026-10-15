@@ -2,7 +2,8 @@ EMACS ?= emacs
 BATCH = $(EMACS) -Q --batch -L .
 DEPS_DIR = .deps
 PACKAGES = --eval "(progn (require 'package) \
-  (setq package-user-dir (expand-file-name \"$(DEPS_DIR)\")) \
+  (setq package-user-dir (expand-file-name \"$(DEPS_DIR)\") \
+        package-directory-list nil) \
   (package-initialize))"
 
 .PHONY: all compile checkdoc package-lint lint test deps clean
