@@ -9,86 +9,90 @@
 (require 'ert)
 (require 'magento-cache-clean)
 
-;;; Build args tests
+;;; Helpers
 
-(ert-deftest magento-cache-clean-test-build-args-empty ()
-  "Build args with no options produces empty list."
-  (should (equal '() (magento-cache-clean--build-args nil nil nil nil nil))))
+(defmacro magento-cache-clean-test--with-root (var &rest body)
+  "Bind VAR to a temporary Magento root while running BODY.
+The root has an empty app/etc/env.php and is deleted afterwards."
+  (declare (indent 1))
+  `(let ((,var (file-name-as-directory (make-temp-file "magento-test" t))))
+     (unwind-protect
+         (progn
+           (make-directory (expand-file-name "app/etc" ,var) t)
+           (write-region "" nil (expand-file-name "app/etc/env.php" ,var))
+           ,@body)
+       (delete-directory ,var t))))
 
-(ert-deftest magento-cache-clean-test-build-args-verbose ()
-  "Build args with verbose verbosity."
-  (should (equal '("--verbose")
-                 (magento-cache-clean--build-args "verbose" nil nil nil nil))))
+(defun magento-cache-clean-test--fake-executable (dir script)
+  "Write SCRIPT as an executable named fake-cache-clean in DIR.
+Return its absolute path."
+  (let ((file (expand-file-name "fake-cache-clean" dir)))
+    (write-region (concat "#!/bin/sh\n" script "\n") nil file)
+    (set-file-modes file #o755)
+    file))
 
-(ert-deftest magento-cache-clean-test-build-args-debug ()
-  "Build args with debug verbosity."
-  (should (equal '("--debug")
-                 (magento-cache-clean--build-args "debug" nil nil nil nil))))
+(defun magento-cache-clean-test--wait (buffer)
+  "Wait up to 5 seconds for BUFFER's process to exit."
+  (let ((deadline (+ (float-time) 5)))
+    (while (and (process-live-p (get-buffer-process buffer))
+                (< (float-time) deadline))
+      (accept-process-output nil 0.05))
+    ;; Let the sentinel and filter flush the remaining output.
+    (accept-process-output nil 0.1)))
 
-(ert-deftest magento-cache-clean-test-build-args-silent ()
-  "Build args with silent verbosity."
-  (should (equal '("--silent")
-                 (magento-cache-clean--build-args "silent" nil nil nil nil))))
+(defun magento-cache-clean-test--wait-for-output (buffer regexp)
+  "Wait up to 5 seconds for REGEXP to appear in BUFFER."
+  (let ((deadline (+ (float-time) 5)))
+    (while (and (not (with-current-buffer buffer
+                       (save-excursion
+                         (goto-char (point-min))
+                         (re-search-forward regexp nil t))))
+                (< (float-time) deadline))
+      (accept-process-output nil 0.05))))
 
-(ert-deftest magento-cache-clean-test-build-args-keep-generated ()
-  "Build args with keep-generated flag."
-  (should (equal '("--keep-generated")
-                 (magento-cache-clean--build-args nil t nil nil nil))))
+;;; Transient argument conversion
 
-(ert-deftest magento-cache-clean-test-build-args-no-flood-guard ()
-  "Build args with no-flood-guard flag."
-  (should (equal '("--no-flood-guard")
-                 (magento-cache-clean--build-args nil nil t nil nil))))
+(ert-deftest magento-cache-clean-test-transient-to-cli-empty ()
+  "No transient args give no CLI args."
+  (should (equal nil (magento-cache-clean--transient-to-cli nil))))
 
-(ert-deftest magento-cache-clean-test-build-args-watch ()
-  "Build args with watch flag."
-  (should (equal '("--watch")
-                 (magento-cache-clean--build-args nil nil nil t nil))))
+(ert-deftest magento-cache-clean-test-transient-to-cli-switches ()
+  "Switches pass through unchanged and in order."
+  (should (equal '("--debug" "--keep-generated" "--no-flood-guard")
+                 (magento-cache-clean--transient-to-cli
+                  '("--debug" "--keep-generated" "--no-flood-guard")))))
 
-(ert-deftest magento-cache-clean-test-build-args-cache-types ()
-  "Build args with cache types appended at the end."
-  (should (equal '("config" "layout")
-                 (magento-cache-clean--build-args nil nil nil nil '("config" "layout")))))
+(ert-deftest magento-cache-clean-test-transient-to-cli-types-after-flags ()
+  "Cache types become positional args after the switches."
+  (should (equal '("--verbose" "--keep-generated" "config" "layout")
+                 (magento-cache-clean--transient-to-cli
+                  '("--verbose" "--types=config" "--keep-generated"
+                    "--types=layout")))))
 
-(ert-deftest magento-cache-clean-test-build-args-all-options ()
-  "Build args with all options combined."
-  (should (equal '("--verbose" "--keep-generated" "--no-flood-guard" "--watch"
-                   "config" "full_page")
-                 (magento-cache-clean--build-args "verbose" t t t '("config" "full_page")))))
+(ert-deftest magento-cache-clean-test-cache-types-infix-keeps-all-types ()
+  "Every cache type selected in the transient reaches the CLI."
+  (let ((obj (clone (get 'magento-cache-clean--infix-cache-types
+                         'transient--suffix))))
+    (oset obj value '("config" "layout"))
+    (should (equal '("config" "layout")
+                   (magento-cache-clean--transient-to-cli
+                    (ensure-list (transient-infix-value obj)))))))
 
-(ert-deftest magento-cache-clean-test-build-args-flags-before-types ()
-  "Flags appear before cache types."
-  (let ((args (magento-cache-clean--build-args "debug" t nil nil '("layout"))))
-    (should (equal '("--debug" "--keep-generated" "layout") args))))
-
-;;; Directory detection tests
+;;; Directory detection
 
 (ert-deftest magento-cache-clean-test-detect-directory-found ()
   "Detect directory when app/etc/env.php exists."
-  (let ((temp-dir (make-temp-file "magento-test" t)))
-    (unwind-protect
-        (progn
-          (make-directory (expand-file-name "app/etc" temp-dir) t)
-          (write-region "" nil (expand-file-name "app/etc/env.php" temp-dir))
-          (let ((default-directory (file-name-as-directory temp-dir)))
-            (should (equal (file-name-as-directory temp-dir)
-                           (magento-cache-clean--detect-directory)))))
-      (delete-directory temp-dir t))))
+  (magento-cache-clean-test--with-root root
+    (let ((default-directory root))
+      (should (equal root (magento-cache-clean--detect-directory))))))
 
 (ert-deftest magento-cache-clean-test-detect-directory-from-subdirectory ()
   "Detect directory from a subdirectory of the Magento root."
-  (let ((temp-dir (make-temp-file "magento-test" t)))
-    (unwind-protect
-        (progn
-          (make-directory (expand-file-name "app/etc" temp-dir) t)
-          (write-region "" nil (expand-file-name "app/etc/env.php" temp-dir))
-          (make-directory (expand-file-name "app/code/Vendor/Module" temp-dir) t)
-          (let ((default-directory
-                 (file-name-as-directory
-                  (expand-file-name "app/code/Vendor/Module" temp-dir))))
-            (should (equal (file-name-as-directory temp-dir)
-                           (magento-cache-clean--detect-directory)))))
-      (delete-directory temp-dir t))))
+  (magento-cache-clean-test--with-root root
+    (let ((sub (expand-file-name "app/code/Vendor/Module/" root)))
+      (make-directory sub t)
+      (let ((default-directory sub))
+        (should (equal root (magento-cache-clean--detect-directory)))))))
 
 (ert-deftest magento-cache-clean-test-detect-directory-not-found ()
   "Return nil when not in a Magento project."
@@ -107,92 +111,232 @@
                          (magento-cache-clean--directory))))
       (delete-directory temp-dir t))))
 
-;;; Transient arg parsing tests
-
-(ert-deftest magento-cache-clean-test-parse-args-empty ()
-  "Parse empty args."
-  (let ((parsed (magento-cache-clean--transient-parse-args nil)))
-    (should-not (plist-get parsed :verbosity))
-    (should-not (plist-get parsed :keep-generated))
-    (should-not (plist-get parsed :no-flood-guard))
-    (should-not (plist-get parsed :cache-types))))
-
-(ert-deftest magento-cache-clean-test-parse-args-verbosity ()
-  "Parse verbosity arg."
-  (let ((parsed (magento-cache-clean--transient-parse-args '("--verbose"))))
-    (should (equal "verbose" (plist-get parsed :verbosity)))))
-
-(ert-deftest magento-cache-clean-test-parse-args-flags ()
-  "Parse flag args."
-  (let ((parsed (magento-cache-clean--transient-parse-args
-                 '("--keep-generated" "--no-flood-guard"))))
-    (should (plist-get parsed :keep-generated))
-    (should (plist-get parsed :no-flood-guard))))
-
-(ert-deftest magento-cache-clean-test-parse-args-cache-types ()
-  "Parse cache types arg."
-  (let ((parsed (magento-cache-clean--transient-parse-args '("--types=config,layout"))))
-    (should (equal '("config" "layout") (plist-get parsed :cache-types)))))
-
-(ert-deftest magento-cache-clean-test-parse-args-combined ()
-  "Parse combined args."
-  (let ((parsed (magento-cache-clean--transient-parse-args
-                 '("--debug" "--keep-generated" "--types=full_page"))))
-    (should (equal "debug" (plist-get parsed :verbosity)))
-    (should (plist-get parsed :keep-generated))
-    (should-not (plist-get parsed :no-flood-guard))
-    (should (equal '("full_page") (plist-get parsed :cache-types)))))
-
-;;; Buffer naming tests
-
-(ert-deftest magento-cache-clean-test-buffer-name-no-project ()
-  "Buffer name without a project."
-  (let ((default-directory (make-temp-file "no-project" t)))
+(ert-deftest magento-cache-clean-test-directory-prompt-is-expanded ()
+  "A prompted directory is expanded, since the watch process gets no shell."
+  (let ((temp-dir (make-temp-file "not-magento" t)))
     (unwind-protect
-        (progn
-          (should (equal "*magento-cache-clean*"
-                         (magento-cache-clean--buffer-name)))
-          (should (equal "*magento-cache-clean-watch*"
-                         (magento-cache-clean--watch-buffer-name))))
-      (delete-directory default-directory t))))
-
-(ert-deftest magento-cache-clean-test-buffer-name-with-project ()
-  "Buffer name includes project name."
-  (let ((temp-dir (make-temp-file "my-project" t)))
-    (unwind-protect
-        (progn
-          (make-directory (expand-file-name ".git" temp-dir))
-          (let ((default-directory (file-name-as-directory temp-dir)))
-            (should (string-match-p "\\*magento-cache-clean\\[.*\\]\\*"
-                                    (magento-cache-clean--buffer-name)))
-            (should (string-match-p "\\*magento-cache-clean-watch\\[.*\\]\\*"
-                                    (magento-cache-clean--watch-buffer-name)))))
+        (let ((default-directory (file-name-as-directory temp-dir))
+              (magento-cache-clean-directory nil))
+          (cl-letf (((symbol-function 'read-directory-name)
+                     (lambda (&rest _) "~/magento")))
+            (should (equal (file-name-as-directory (expand-file-name "~/magento"))
+                           (magento-cache-clean--directory)))))
       (delete-directory temp-dir t))))
 
-(ert-deftest magento-cache-clean-test-watch-not-running ()
-  "Watch not running when no buffer exists."
-  (let ((buf-name (magento-cache-clean--watch-buffer-name)))
-    (when (get-buffer buf-name)
-      (kill-buffer buf-name))
-    (should-not (magento-cache-clean--watch-running-p))))
+;;; Cache types
 
-;;; Cache types constant tests
+(ert-deftest magento-cache-clean-test-env-php-types-short-array ()
+  "Read cache types from env.php using short array syntax."
+  (magento-cache-clean-test--with-root root
+    (write-region "<?php
+return [
+    'cache' => ['frontend' => ['default' => ['id_prefix' => 'abc_']]],
+    'cache_types' => [
+        'config' => 1,
+        'target_rule' => 1,
+        'two_factor_authentication_codes' => 0
+    ],
+    'install' => ['date' => 'Mon, 01 Jan 2024']
+];" nil (expand-file-name "app/etc/env.php" root))
+    (should (equal '("config" "target_rule" "two_factor_authentication_codes")
+                   (magento-cache-clean--env-php-types root)))))
 
-(ert-deftest magento-cache-clean-test-cache-types-non-empty ()
-  "Cache types list is non-empty."
-  (should (consp magento-cache-clean-types)))
+(ert-deftest magento-cache-clean-test-env-php-types-long-array ()
+  "Read cache types from env.php using array() syntax."
+  (magento-cache-clean-test--with-root root
+    (write-region "<?php
+return array (
+  'cache_types' => array (
+    \"config\" => 1,
+    \"layout\" => 1,
+  ),
+  'x' => 1,
+);" nil (expand-file-name "app/etc/env.php" root))
+    (should (equal '("config" "layout")
+                   (magento-cache-clean--env-php-types root)))))
 
-(ert-deftest magento-cache-clean-test-cache-types-all-strings ()
-  "All cache types are strings."
-  (dolist (ct magento-cache-clean-types)
-    (should (stringp ct))))
+(ert-deftest magento-cache-clean-test-cache-types-fallback ()
+  "Fall back to the core list when env.php has no cache_types."
+  (magento-cache-clean-test--with-root root
+    (let ((default-directory root)
+          (magento-cache-clean-directory nil))
+      (should (equal magento-cache-clean-types
+                     (magento-cache-clean--cache-types))))))
 
 (ert-deftest magento-cache-clean-test-cache-types-no-duplicates ()
-  "No duplicate cache types."
+  "No duplicate core cache types."
   (should (equal (length magento-cache-clean-types)
                  (length (delete-dups (copy-sequence magento-cache-clean-types))))))
 
-;;; Safe local variable tests
+;;; Buffers
+
+(ert-deftest magento-cache-clean-test-buffer-name-per-root ()
+  "Buffer names identify the Magento root, so same-named projects don't clash."
+  (should (equal "*magento-cache-clean: /a/src*"
+                 (magento-cache-clean--buffer-name "/a/src/")))
+  (should (equal "*magento-cache-clean-watch: /b/src*"
+                 (magento-cache-clean--buffer-name "/b/src/" t))))
+
+(ert-deftest magento-cache-clean-test-watch-not-running ()
+  "No watch process when no watch buffer exists."
+  (magento-cache-clean-test--with-root root
+    (let ((default-directory root)
+          (magento-cache-clean-directory nil))
+      (should-not (magento-cache-clean--watch-process)))))
+
+;;; Watch mode keys
+
+(ert-deftest magento-cache-clean-test-watch-forwards-printable-keys ()
+  "Printable keys go to the process; Emacs and comint keys keep working."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (dolist (key '("c" "G" "?" "1"))
+      (should (eq 'magento-cache-clean-watch-send-key (key-binding (kbd key)))))
+    (should (eq 'comint-interrupt-subjob (key-binding (kbd "C-c C-c"))))
+    (should (eq 'find-file (key-binding (kbd "C-x C-f"))))))
+
+;;; Processes
+
+(ert-deftest magento-cache-clean-test-one-shot-runs-with-caller-env ()
+  "One-shot runs in the root, with the caller's environment and the args."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable
+             root "echo \"FOO=$FOO PWD=$PWD ARGS=$*\""))
+           (buf nil))
+      (unwind-protect
+          (with-temp-buffer
+            (setq default-directory (expand-file-name "app/" root))
+            (setq-local process-environment
+                        (cons "FOO=from-caller" process-environment))
+            (setq buf (magento-cache-clean '("--keep-generated" "config")))
+            (magento-cache-clean-test--wait buf)
+            (with-current-buffer buf
+              (should (derived-mode-p 'magento-cache-clean-mode))
+              (should (string-match-p
+                       (regexp-quote
+                        (format "FOO=from-caller PWD=%s ARGS=-d %s --keep-generated config"
+                                (directory-file-name root) root))
+                       (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-runs-with-caller-env ()
+  "Watch gets the caller's environment and exec-path on first start."
+  (magento-cache-clean-test--with-root root
+    (let* ((bin (expand-file-name "bin/" root))
+           (buf nil))
+      (make-directory bin)
+      (magento-cache-clean-test--fake-executable
+       bin "echo \"FOO=$FOO PWD=$PWD ARGS=$*\"")
+      (unwind-protect
+          (with-temp-buffer
+            (setq default-directory root)
+            (setq-local process-environment
+                        (cons "FOO=from-caller" process-environment))
+            ;; Only findable through the caller's buffer-local exec-path.
+            (setq-local exec-path (cons bin exec-path))
+            (let ((magento-cache-clean-executable "fake-cache-clean"))
+              (setq buf (magento-cache-clean-watch '("config"))))
+            (magento-cache-clean-test--wait buf)
+            (with-current-buffer buf
+              (should (derived-mode-p 'magento-cache-clean-watch-mode))
+              (should (string-match-p
+                       (regexp-quote
+                        (format "FOO=from-caller PWD=%s ARGS=-d %s --watch config"
+                                (directory-file-name root) root))
+                       (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-restart-starts-new-process ()
+  "Restarting a running watcher leaves a new live process."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable
+             root "echo started; exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch)))
+      (unwind-protect
+          (let ((first (get-buffer-process buf)))
+            (cl-letf (((symbol-function 'yes-or-no-p) #'always))
+              (magento-cache-clean-watch))
+            (let ((second (get-buffer-process buf)))
+              (should second)
+              (should-not (eq first second))
+              (accept-process-output nil 0.2)
+              (should (process-live-p second))
+              (should-not (process-live-p first))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-declined-restart-keeps-process ()
+  "Declining the restart prompt keeps the running watcher."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch)))
+      (unwind-protect
+          (let ((proc (get-buffer-process buf)))
+            (cl-letf (((symbol-function 'yes-or-no-p) #'ignore))
+              (should-error (magento-cache-clean-watch) :type 'user-error))
+            (should (eq proc (get-buffer-process buf)))
+            (should (process-live-p proc)))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-send-key ()
+  "A forwarded key reaches the process unchanged."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable
+             root "stty raw -echo; key=$(dd bs=1 count=1 2>/dev/null); echo \"got:$key\""))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch)))
+      (unwind-protect
+          (with-current-buffer buf
+            (accept-process-output nil 0.3)
+            (let ((last-command-event ?G))
+              (call-interactively #'magento-cache-clean-watch-send-key))
+            (magento-cache-clean-test--wait-for-output buf "got:G")
+            (should (string-match-p "got:G" (buffer-string))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-stop ()
+  "Stopping interrupts the watcher for the current root."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch)))
+      (unwind-protect
+          (progn
+            (should (eq (get-buffer-process buf)
+                        (magento-cache-clean--watch-process)))
+            (magento-cache-clean-watch-stop)
+            (magento-cache-clean-test--wait buf)
+            (should-not (magento-cache-clean--watch-process)))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-one-shot-renders-ansi-colors ()
+  "One-shot output has ANSI escapes turned into faces."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable
+             root "printf '\\033[33mwarn\\033[0m\\n'"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean)))
+      (unwind-protect
+          (with-current-buffer buf
+            (magento-cache-clean-test--wait buf)
+            (should-not (string-search "\e[" (buffer-string)))
+            (goto-char (point-min))
+            (should (search-forward "warn" nil t)))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+;;; Safe local variables
 
 (ert-deftest magento-cache-clean-test-executable-safe-local ()
   "Executable is safe as a dir-local when string."

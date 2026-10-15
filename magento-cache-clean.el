@@ -34,11 +34,17 @@
 ;; - Transient UI via `magento-cache-clean-transient'
 ;; - Auto-detection of Magento root directory
 ;; - Per-project configuration via .dir-locals.el
+;;
+;; Commands take a list of cache-clean command line arguments, so they
+;; can also be called from Lisp:
+;;
+;;   (magento-cache-clean \\='("--keep-generated" "layout"))
 
 ;;; Code:
 
+(require 'ansi-color)
 (require 'comint)
-(require 'project)
+(require 'compile)
 (require 'transient)
 
 ;;; Customization
@@ -77,7 +83,32 @@ When nil, auto-detected by searching for app/etc/env.php."
     "config_webservice"
     "full_page"
     "translate")
-  "List of Magento 2 cache types.")
+  "Magento 2 core cache types.
+Only used for completion when the project's env.php can't be read.")
+
+(defun magento-cache-clean--env-php-types (root)
+  "Return the cache types listed under `cache_types' in ROOT's env.php.
+Return nil if the file or the section is missing."
+  (let ((file (expand-file-name "app/etc/env.php" root)))
+    (when (file-readable-p file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (when (re-search-forward
+               "['\"]cache_types['\"][[:space:]]*=>[[:space:]]*\\(?:\\[\\|array[[:space:]]*(\\)"
+               nil t)
+          (let ((end (save-excursion (re-search-forward "[])]" nil t)))
+                types)
+            (while (re-search-forward
+                    "['\"]\\([[:alnum:]_]+\\)['\"][[:space:]]*=>" end t)
+              (push (match-string 1) types))
+            (nreverse types)))))))
+
+(defun magento-cache-clean--cache-types ()
+  "Return cache type completion candidates for the current Magento root.
+cache-clean accepts any cache type name, so these are only suggestions."
+  (or (when-let* ((root (magento-cache-clean--root)))
+        (magento-cache-clean--env-php-types root))
+      magento-cache-clean-types))
 
 ;;; Directory detection
 
@@ -86,64 +117,66 @@ When nil, auto-detected by searching for app/etc/env.php."
   (when-let* ((dir (locate-dominating-file default-directory "app/etc/env.php")))
     (file-name-as-directory (expand-file-name dir))))
 
+(defun magento-cache-clean--root ()
+  "Return the configured or detected Magento root, or nil."
+  (if magento-cache-clean-directory
+      (file-name-as-directory (expand-file-name magento-cache-clean-directory))
+    (magento-cache-clean--detect-directory)))
+
 (defun magento-cache-clean--directory ()
-  "Return the Magento root directory.
-Uses `magento-cache-clean-directory' if set, otherwise auto-detects.
-Prompts the user as a last resort."
-  (or (and magento-cache-clean-directory
-           (file-name-as-directory (expand-file-name magento-cache-clean-directory)))
-      (magento-cache-clean--detect-directory)
+  "Return the Magento root directory, prompting if it can't be found."
+  (or (magento-cache-clean--root)
       (file-name-as-directory
-       (read-directory-name "Magento root directory: "))))
+       (expand-file-name
+        (read-directory-name "Magento root directory: " nil nil t)))))
 
-;;; Command building
+;;; Arguments
 
-(defun magento-cache-clean--build-args (verbosity keep-generated no-flood-guard watch cache-types)
-  "Build command line arguments.
-VERBOSITY is one of nil, \"verbose\", \"debug\", \"silent\".
-KEEP-GENERATED, NO-FLOOD-GUARD, and WATCH are booleans.
-CACHE-TYPES is a list of cache type strings."
-  (let (args)
-    (pcase verbosity
-      ("verbose" (push "--verbose" args))
-      ("debug"   (push "--debug" args))
-      ("silent"  (push "--silent" args)))
-    (when keep-generated
-      (push "--keep-generated" args))
-    (when no-flood-guard
-      (push "--no-flood-guard" args))
-    (when watch
-      (push "--watch" args))
-    (append (nreverse args) cache-types)))
+(defun magento-cache-clean--transient-to-cli (args)
+  "Convert transient ARGS to cache-clean command line arguments.
+Switches are passed through and each --types=TYPE becomes a positional
+TYPE after them."
+  (let (flags types)
+    (dolist (arg args)
+      (if (string-prefix-p "--types=" arg)
+          (push (string-remove-prefix "--types=" arg) types)
+        (push arg flags)))
+    (nconc (nreverse flags) (nreverse types))))
 
-;;; Buffer management
+(defun magento-cache-clean--arguments ()
+  "Return the cache-clean arguments set in `magento-cache-clean-transient'.
+Outside the transient this is its saved or default value."
+  (magento-cache-clean--transient-to-cli
+   (transient-args 'magento-cache-clean-transient)))
 
-(defun magento-cache-clean--project-name ()
-  "Return the current project name, or nil."
-  (when-let* ((proj (project-current)))
-    (project-name proj)))
+;;; Buffers
 
-(defun magento-cache-clean--buffer-name ()
-  "Return the buffer name for one-shot mode."
-  (if-let* ((name (magento-cache-clean--project-name)))
-      (format "*magento-cache-clean[%s]*" name)
-    "*magento-cache-clean*"))
+(defun magento-cache-clean--buffer-name (root &optional watch)
+  "Return the output buffer name for Magento ROOT.
+When WATCH is non-nil, return the watch buffer name."
+  (format "*magento-cache-clean%s: %s*"
+          (if watch "-watch" "")
+          (abbreviate-file-name (directory-file-name root))))
 
-(defun magento-cache-clean--watch-buffer-name ()
-  "Return the buffer name for watch mode."
-  (if-let* ((name (magento-cache-clean--project-name)))
-      (format "*magento-cache-clean-watch[%s]*" name)
-    "*magento-cache-clean-watch*"))
+(defun magento-cache-clean--watch-process ()
+  "Return the watch process for the current buffer's Magento root, or nil."
+  (if (derived-mode-p 'magento-cache-clean-watch-mode)
+      (get-buffer-process (current-buffer))
+    (when-let* ((root (magento-cache-clean--root))
+                (buf (get-buffer (magento-cache-clean--buffer-name root t))))
+      (get-buffer-process buf))))
 
-(defun magento-cache-clean--watch-running-p ()
-  "Return non-nil if a watch process is running for the current project."
-  (when-let* ((buf (get-buffer (magento-cache-clean--watch-buffer-name))))
-    (get-buffer-process buf)))
+;;; Modes
 
-;;; Watch mode
+(define-compilation-mode magento-cache-clean-mode "MagentoCacheClean"
+  "Major mode for one-shot magento-cache-clean output."
+  ;; Output has no file:line locations worth jumping to.
+  (setq-local compilation-error-regexp-alist nil)
+  (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter nil t))
 
 (defun magento-cache-clean-watch-send-key ()
-  "Send the last key pressed directly to the watch process."
+  "Send the key just pressed to the watch process.
+cache-clean reads stdin in raw mode and handles the key itself."
   (interactive)
   (if-let* ((proc (get-buffer-process (current-buffer))))
       (process-send-string proc (string last-command-event))
@@ -152,88 +185,54 @@ CACHE-TYPES is a list of cache type strings."
 (defvar-keymap magento-cache-clean-watch-mode-map
   :doc "Keymap for `magento-cache-clean-watch-mode'."
   :parent comint-mode-map
-  "c" #'magento-cache-clean-watch-send-key
-  "b" #'magento-cache-clean-watch-send-key
-  "l" #'magento-cache-clean-watch-send-key
-  "t" #'magento-cache-clean-watch-send-key
-  "f" #'magento-cache-clean-watch-send-key
-  "v" #'magento-cache-clean-watch-send-key
-  "m" #'magento-cache-clean-watch-send-key
-  "a" #'magento-cache-clean-watch-send-key
-  "G" #'magento-cache-clean-watch-send-key
-  "I" #'magento-cache-clean-watch-send-key
-  "F" #'magento-cache-clean-watch-send-key
-  "A" #'magento-cache-clean-watch-send-key)
+  "<remap> <self-insert-command>" #'magento-cache-clean-watch-send-key)
 
 (define-derived-mode magento-cache-clean-watch-mode comint-mode "MagentoCacheClean"
   "Major mode for magento-cache-clean watch buffers.
-Single-key hotkeys are sent directly to the process:
+Printable keys are sent straight to the cache-clean process, which
+handles them as hotkeys; see the cache-clean README for the list.
 
-  \\[magento-cache-clean-watch-send-key] c  config
-  \\[magento-cache-clean-watch-send-key] b  block_html
-  \\[magento-cache-clean-watch-send-key] l  layout
-  \\[magento-cache-clean-watch-send-key] t  translate
-  \\[magento-cache-clean-watch-send-key] f  full_page
-  \\[magento-cache-clean-watch-send-key] v  view
-  \\[magento-cache-clean-watch-send-key] m  misc
-  \\[magento-cache-clean-watch-send-key] a  all
-  \\[magento-cache-clean-watch-send-key] G  clean generated
-  \\[magento-cache-clean-watch-send-key] I  clean integration test sandboxes
-  \\[magento-cache-clean-watch-send-key] F  clean frontend static content
-  \\[magento-cache-clean-watch-send-key] A  clean adminhtml static content")
+\\{magento-cache-clean-watch-mode-map}")
 
-;;; Interactive commands
+;;; Commands
 
 ;;;###autoload
-(defun magento-cache-clean (&optional verbosity keep-generated no-flood-guard cache-types)
-  "Run cache-clean once.
-VERBOSITY is one of nil, \"verbose\", \"debug\", \"silent\".
-KEEP-GENERATED and NO-FLOOD-GUARD are booleans.
-CACHE-TYPES is a list of cache type strings."
-  (interactive)
-  (let* ((directory (magento-cache-clean--directory))
-         (env process-environment)
-         (buf-name (magento-cache-clean--buffer-name))
-         (args (magento-cache-clean--build-args
-                verbosity keep-generated no-flood-guard nil cache-types))
-         (full-args (append (list "-d" directory) args))
+(defun magento-cache-clean (&optional args)
+  "Run cache-clean once with command line ARGS.
+Interactively, ARGS come from `magento-cache-clean-transient'."
+  (interactive (list (magento-cache-clean--arguments)))
+  (let* ((root (magento-cache-clean--directory))
+         (name (magento-cache-clean--buffer-name root))
          (command (mapconcat #'shell-quote-argument
-                             (cons magento-cache-clean-executable full-args)
-                             " ")))
-    (with-current-buffer (get-buffer-create buf-name)
-      (let ((inhibit-read-only t))
-        (erase-buffer))
-      (setq-local process-environment env)
-      (compilation-start command nil (lambda (_) buf-name)))))
+                             `(,magento-cache-clean-executable "-d" ,root ,@args)
+                             " "))
+         ;; `compilation-start' inherits this buffer's environment.
+         (default-directory root))
+    (compilation-start command #'magento-cache-clean-mode (lambda (_) name))))
 
 ;;;###autoload
-(defun magento-cache-clean-watch (&optional verbosity keep-generated no-flood-guard cache-types)
-  "Start cache-clean in watch mode using comint.
-VERBOSITY is one of nil, \"verbose\", \"debug\", \"silent\".
-KEEP-GENERATED and NO-FLOOD-GUARD are booleans.
-CACHE-TYPES is a list of cache type strings."
-  (interactive)
-  (when (magento-cache-clean--watch-running-p)
-    (if (yes-or-no-p "Watch process already running.  Restart? ")
-        (magento-cache-clean-watch-stop)
-      (user-error "Watch process already running")))
-  (let* ((directory (magento-cache-clean--directory))
+(defun magento-cache-clean-watch (&optional args)
+  "Start cache-clean in watch mode with command line ARGS.
+Interactively, ARGS come from `magento-cache-clean-transient'."
+  (interactive (list (magento-cache-clean--arguments)))
+  (let* ((root (magento-cache-clean--directory))
          (env process-environment)
-         (watch-buf-name (magento-cache-clean--watch-buffer-name))
-         (args (magento-cache-clean--build-args
-                verbosity keep-generated no-flood-guard t cache-types))
-         (full-args (append (list "-d" directory) args))
-         (buf (with-current-buffer (get-buffer-create watch-buf-name)
-                (setq-local process-environment env)
-                (apply #'make-comint-in-buffer
-                       "magento-cache-clean"
-                       (current-buffer)
-                       magento-cache-clean-executable
-                       nil
-                       full-args))))
+         (path exec-path)
+         (buf (get-buffer-create (magento-cache-clean--buffer-name root t))))
+    (when (and (get-buffer-process buf)
+               (not (yes-or-no-p "Watch process already running.  Restart? ")))
+      (user-error "Watch process already running"))
     (with-current-buffer buf
-      (magento-cache-clean-watch-mode)
-      (setq-local default-directory directory))
+      (unless (derived-mode-p 'magento-cache-clean-watch-mode)
+        (magento-cache-clean-watch-mode))
+      ;; Set after the mode change, which kills local variables.
+      (setq default-directory root)
+      (setq-local process-environment env
+                  exec-path path)
+      ;; `comint-exec' deletes any process still running in BUF.
+      (comint-exec buf "magento-cache-clean" magento-cache-clean-executable
+                   nil `("-d" ,root "--watch" ,@args))
+      (set-process-query-on-exit-flag (get-buffer-process buf) nil))
     (display-buffer buf)
     buf))
 
@@ -241,7 +240,7 @@ CACHE-TYPES is a list of cache type strings."
 (defun magento-cache-clean-watch-stop ()
   "Stop the running watch process."
   (interactive)
-  (if-let* ((proc (magento-cache-clean--watch-running-p)))
+  (if-let* ((proc (magento-cache-clean--watch-process)))
       (progn
         (interrupt-process proc)
         (message "magento-cache-clean watch stopped"))
@@ -263,46 +262,7 @@ CACHE-TYPES is a list of cache type strings."
   :description "Cache types"
   :argument "--types="
   :multi-value 'repeat
-  :choices magento-cache-clean-types)
-
-(defun magento-cache-clean--transient-parse-args (args)
-  "Parse transient ARGS into components.
-Returns a plist with :verbosity, :keep-generated, :no-flood-guard, :cache-types."
-  (let (verbosity keep-generated no-flood-guard cache-types)
-    (dolist (arg args)
-      (cond
-       ((member arg '("--verbose" "--debug" "--silent"))
-        (setq verbosity (substring arg 2)))
-       ((equal arg "--keep-generated")
-        (setq keep-generated t))
-       ((equal arg "--no-flood-guard")
-        (setq no-flood-guard t))
-       ((string-prefix-p "--types=" arg)
-        (setq cache-types (split-string (substring arg 8) ",")))))
-    (list :verbosity verbosity
-          :keep-generated keep-generated
-          :no-flood-guard no-flood-guard
-          :cache-types cache-types)))
-
-(defun magento-cache-clean--do-clean (&optional args)
-  "Run one-shot clean with transient ARGS."
-  (interactive (list (transient-args 'magento-cache-clean-transient)))
-  (let ((parsed (magento-cache-clean--transient-parse-args args)))
-    (magento-cache-clean
-     (plist-get parsed :verbosity)
-     (plist-get parsed :keep-generated)
-     (plist-get parsed :no-flood-guard)
-     (plist-get parsed :cache-types))))
-
-(defun magento-cache-clean--do-watch (&optional args)
-  "Start watch mode with transient ARGS."
-  (interactive (list (transient-args 'magento-cache-clean-transient)))
-  (let ((parsed (magento-cache-clean--transient-parse-args args)))
-    (magento-cache-clean-watch
-     (plist-get parsed :verbosity)
-     (plist-get parsed :keep-generated)
-     (plist-get parsed :no-flood-guard)
-     (plist-get parsed :cache-types))))
+  :choices #'magento-cache-clean--cache-types)
 
 ;;;###autoload (autoload 'magento-cache-clean-transient "magento-cache-clean" nil t)
 (transient-define-prefix magento-cache-clean-transient ()
@@ -310,9 +270,7 @@ Returns a plist with :verbosity, :keep-generated, :no-flood-guard, :cache-types.
   [:description
    (lambda ()
      (format "Magento dir: %s"
-             (or magento-cache-clean-directory
-                 (magento-cache-clean--detect-directory)
-                 "not detected")))
+             (or (magento-cache-clean--root) "not detected")))
    ["Options"
     (magento-cache-clean--infix-verbosity)
     ("-k" "Keep generated" "--keep-generated")
@@ -320,8 +278,8 @@ Returns a plist with :verbosity, :keep-generated, :no-flood-guard, :cache-types.
    ["Cache types"
     (magento-cache-clean--infix-cache-types)]
    ["Actions"
-    ("c" "Clean" magento-cache-clean--do-clean)
-    ("w" "Watch" magento-cache-clean--do-watch)
+    ("c" "Clean" magento-cache-clean)
+    ("w" "Watch" magento-cache-clean-watch)
     ("s" "Stop watch" magento-cache-clean-watch-stop)]])
 
 (provide 'magento-cache-clean)

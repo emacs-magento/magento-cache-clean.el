@@ -6,10 +6,10 @@ Emacs integration for [[https://github.com/mage-os/magento-cache-clean][mage-os/
 * Features
 
 - One-shot cache cleaning via =magento-cache-clean= (compilation buffer)
-- Watch mode via =magento-cache-clean-watch= (comint with single-key hotkeys)
+- Watch mode via =magento-cache-clean-watch= (comint; keys go straight to cache-clean)
 - Transient UI via =magento-cache-clean-transient=
 - Auto-detection of Magento root directory (=app/etc/env.php=)
-- Per-project buffers via =project.el=
+- One output buffer per Magento root
 - Per-project configuration via =.dir-locals.el=
 - Propagates =envrc= / =direnv= environment to child processes
 
@@ -44,8 +44,10 @@ Run =M-x magento-cache-clean-transient= to open the transient UI where you can:
 
 - Select verbosity level (silent / verbose / debug)
 - Toggle =--keep-generated= and =--no-flood-guard= flags
-- Select cache types to clean
+- Select cache types to clean (suggested from =cache_types= in =app/etc/env.php=; any name is accepted)
 - Run a one-shot clean or start watch mode
+
+Save defaults with =C-x s=; =M-x magento-cache-clean= and =M-x magento-cache-clean-watch= use them when called outside the menu.
 
 ** Direct commands
 
@@ -53,24 +55,18 @@ Run =M-x magento-cache-clean-transient= to open the transient UI where you can:
 - =M-x magento-cache-clean-watch= -- start watch mode (comint)
 - =M-x magento-cache-clean-watch-stop= -- stop the watcher
 
+From Lisp, pass cache-clean command line arguments:
+
+#+begin_src emacs-lisp
+(magento-cache-clean '("--keep-generated" "layout"))
+(magento-cache-clean-watch '("--no-flood-guard"))
+#+end_src
+
 ** Watch mode hotkeys
 
-In the watch buffer, single keys are sent directly to the process:
-
-| Key | Action                           |
-|-----+----------------------------------|
-| =c= | Clean config cache               |
-| =b= | Clean block_html cache           |
-| =l= | Clean layout cache               |
-| =t= | Clean translate cache            |
-| =f= | Clean full_page cache            |
-| =v= | Clean view cache                 |
-| =m= | Clean misc cache                 |
-| =a= | Clean all caches                 |
-| =G= | Clean generated code             |
-| =I= | Clean integration test sandboxes |
-| =F= | Clean frontend static content    |
-| =A= | Clean adminhtml static content   |
+In the watch buffer, every printable key is sent straight to cache-clean,
+which handles it as a hotkey. cache-clean prints the list of hotkeys when
+the watcher starts; see the [[https://github.com/mage-os/magento-cache-clean#hotkeys][upstream README]] for details.
 
 =C-c C-c= stops the watcher.
 
