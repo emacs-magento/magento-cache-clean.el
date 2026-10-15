@@ -170,7 +170,8 @@ cache-clean reads stdin in raw mode and handles the key itself."
   :parent comint-mode-map
   "<remap> <self-insert-command>" #'magento-cache-clean-watch-send-key)
 
-(define-derived-mode magento-cache-clean-watch-mode comint-mode "MagentoCacheClean"
+(define-derived-mode magento-cache-clean-watch-mode comint-mode
+  "MagentoCacheClean:Watch"
   "Major mode for magento-cache-clean watch buffers.
 Printable keys are sent straight to the cache-clean process, which
 handles them as hotkeys; see the cache-clean README for the list.
