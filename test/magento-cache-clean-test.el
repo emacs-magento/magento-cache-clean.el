@@ -319,6 +319,16 @@ Return its absolute path."
             (should (search-forward "warn" nil t)))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+;;; Error regexps
+
+(ert-deftest magento-cache-clean-test-error-regexps-customizable ()
+  "One-shot buffers take their error regexps from the package variable."
+  (let ((magento-cache-clean-error-regexp-alist '(("^ERR \\(.+\\)$" 1))))
+    (with-temp-buffer
+      (magento-cache-clean-mode)
+      (should (equal magento-cache-clean-error-regexp-alist
+                     compilation-error-regexp-alist)))))
+
 ;;; Safe local variables
 
 (ert-deftest magento-cache-clean-test-executable-not-safe-local ()

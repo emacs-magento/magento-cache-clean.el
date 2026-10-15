@@ -133,10 +133,13 @@ When WATCH is non-nil, return the watch buffer name."
 
 ;;; Modes
 
+(defvar magento-cache-clean-error-regexp-alist nil
+  "Value of `compilation-error-regexp-alist' in `magento-cache-clean-mode'.
+cache-clean output has no file:line locations by default, so this is
+empty.  Add entries to make parts of the output clickable.")
+
 (define-compilation-mode magento-cache-clean-mode "MagentoCacheClean"
   "Major mode for one-shot magento-cache-clean output."
-  ;; Output has no file:line locations worth jumping to.
-  (setq-local compilation-error-regexp-alist nil)
   (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter nil t))
 
 (defun magento-cache-clean-watch-send-key ()

@@ -74,10 +74,11 @@ the watcher starts; see the [[https://github.com/mage-os/magento-cache-clean#hot
 
 * Customization
 
-| Variable                            | Description                      | Default         |
-|-------------------------------------+----------------------------------+-----------------|
-| =magento-cache-clean-executable=    | Path to the cache-clean binary   | ="cache-clean"= |
-| =magento-cache-clean-directory=     | Magento root (nil = auto-detect) | =nil=           |
+| Variable                                 | Description                                 | Default         |
+|------------------------------------------+---------------------------------------------+-----------------|
+| =magento-cache-clean-executable=         | Path to the cache-clean binary              | ="cache-clean"= |
+| =magento-cache-clean-directory=          | Magento root (nil = auto-detect)            | =nil=           |
+| =magento-cache-clean-error-regexp-alist= | Regexps that make one-shot output clickable | =nil=           |
 
 =magento-cache-clean-directory= is safe for use in =.dir-locals.el=:
 
