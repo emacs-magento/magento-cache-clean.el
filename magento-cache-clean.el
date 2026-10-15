@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2026  Piotr Kwiecinski
 
-;; Author: Piotr Kwiecinski
+;; Author: Piotr Kwiecinski <piotr.kwiecinski@codemanufacture.com>
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "30.1"))
 ;; Keywords: tools, processes
