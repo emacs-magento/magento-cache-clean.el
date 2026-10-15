@@ -92,12 +92,14 @@ can't be found, prompt for it if PROMPT is non-nil, else return nil."
 
 (defun magento-cache-clean--transient-to-cli (args)
   "Convert transient ARGS to cache-clean command line arguments.
-Each --types=TYPE becomes a positional TYPE; cache-clean accepts them
-anywhere among the switches."
+Each --types=TYPE becomes a positional TYPE and --file-list=FILE
+becomes two arguments, as cache-clean doesn't accept the = form."
   (mapcan (lambda (arg)
             (pcase arg
               ((rx bos "--types=" (let type (+ anything)))
                (list type))
+              ((rx bos "--file-list=" (let file (+ anything)))
+               (list "--file-list" (file-local-name file)))
               (_ (list arg))))
           args))
 
@@ -236,7 +238,8 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
    ["Options"
     (magento-cache-clean--infix-verbosity)
     ("-k" "Keep generated" "--keep-generated")
-    ("-n" "No flood guard" "--no-flood-guard")]
+    ("-n" "No flood guard" "--no-flood-guard")
+    ("-f" "File list" "--file-list=" :reader transient-read-existing-file)]
    ["Cache types"
     (magento-cache-clean--infix-cache-types)]
    ["Actions"

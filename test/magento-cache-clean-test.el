@@ -78,6 +78,15 @@ Return its absolute path."
                    (magento-cache-clean--transient-to-cli
                     (ensure-list (transient-infix-value obj)))))))
 
+(ert-deftest magento-cache-clean-test-transient-to-cli-file-list ()
+  "The file list becomes two args, with the file's local name."
+  (should (equal '("--file-list" "/tmp/files.txt")
+                 (magento-cache-clean--transient-to-cli
+                  '("--file-list=/tmp/files.txt"))))
+  (should (equal '("--file-list" "/var/www/files.txt")
+                 (magento-cache-clean--transient-to-cli
+                  '("--file-list=/ssh:host:/var/www/files.txt")))))
+
 ;;; Command line
 
 (ert-deftest magento-cache-clean-test-command ()
