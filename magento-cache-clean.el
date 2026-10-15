@@ -38,7 +38,7 @@
 ;; Commands take a list of cache-clean command line arguments, so they
 ;; can also be called from Lisp:
 ;;
-;;   (magento-cache-clean \\='("--keep-generated" "layout"))
+;;   (magento-cache-clean '("--keep-generated" "layout"))
 
 ;;; Code:
 
@@ -52,7 +52,8 @@
 (defgroup magento-cache-clean nil
   "Interface to magento-cache-clean."
   :group 'tools
-  :prefix "magento-cache-clean-")
+  :prefix "magento-cache-clean-"
+  :link '(url-link "https://github.com/mage-os/magento-cache-clean"))
 
 ;; Not marked safe: a .dir-locals.el could otherwise run any program.
 (defcustom magento-cache-clean-executable "cache-clean"
