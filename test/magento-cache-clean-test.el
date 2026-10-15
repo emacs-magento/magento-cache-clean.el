@@ -83,23 +83,28 @@ Return its absolute path."
 (ert-deftest magento-cache-clean-test-detect-directory-found ()
   "Detect directory when app/etc/env.php exists."
   (magento-cache-clean-test--with-root root
-    (let ((default-directory root))
-      (should (equal root (magento-cache-clean--detect-directory))))))
+    (let ((default-directory root)
+          (magento-cache-clean-directory nil))
+      (should (equal root (magento-cache-clean--root))))))
 
 (ert-deftest magento-cache-clean-test-detect-directory-from-subdirectory ()
   "Detect directory from a subdirectory of the Magento root."
   (magento-cache-clean-test--with-root root
-    (let ((sub (expand-file-name "app/code/Vendor/Module/" root)))
+    (let ((sub (expand-file-name "app/code/Vendor/Module/" root))
+          (magento-cache-clean-directory nil))
       (make-directory sub t)
       (let ((default-directory sub))
-        (should (equal root (magento-cache-clean--detect-directory)))))))
+        (should (equal root (magento-cache-clean--root)))))))
 
 (ert-deftest magento-cache-clean-test-detect-directory-not-found ()
-  "Return nil when not in a Magento project."
+  "Return nil when not in a Magento project and not prompting."
   (let ((temp-dir (make-temp-file "not-magento" t)))
     (unwind-protect
-        (let ((default-directory (file-name-as-directory temp-dir)))
-          (should-not (magento-cache-clean--detect-directory)))
+        (let ((default-directory (file-name-as-directory temp-dir))
+              (magento-cache-clean-directory nil))
+          (cl-letf (((symbol-function 'read-directory-name)
+                     (lambda (&rest _) (error "Unexpected prompt"))))
+            (should-not (magento-cache-clean--root))))
       (delete-directory temp-dir t))))
 
 (ert-deftest magento-cache-clean-test-directory-uses-custom ()

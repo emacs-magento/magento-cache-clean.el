@@ -68,23 +68,25 @@ When nil, auto-detected by searching for app/etc/env.php."
 
 ;;; Directory detection
 
-(defun magento-cache-clean--detect-directory ()
-  "Detect Magento root by looking for app/etc/env.php upward."
-  (when-let* ((dir (locate-dominating-file default-directory "app/etc/env.php")))
-    (file-name-as-directory (expand-file-name dir))))
+(defun magento-cache-clean--read-root ()
+  "Read a Magento root directory in the minibuffer."
+  (file-name-as-directory
+   (expand-file-name
+    (read-directory-name "Magento root directory: " nil nil t))))
 
-(defun magento-cache-clean--root ()
-  "Return the configured or detected Magento root, or nil."
-  (if magento-cache-clean-directory
-      (file-name-as-directory (expand-file-name magento-cache-clean-directory))
-    (magento-cache-clean--detect-directory)))
+(defun magento-cache-clean--root (&optional prompt)
+  "Return the configured or detected Magento root.
+The root is detected by looking for app/etc/env.php upward.  When it
+can't be found, prompt for it if PROMPT is non-nil, else return nil."
+  (if-let* ((dir (or magento-cache-clean-directory
+                     (locate-dominating-file default-directory
+                                             "app/etc/env.php"))))
+      (file-name-as-directory (expand-file-name dir))
+    (and prompt (magento-cache-clean--read-root))))
 
 (defun magento-cache-clean--directory ()
-  "Return the Magento root directory, prompting if it can't be found."
-  (or (magento-cache-clean--root)
-      (file-name-as-directory
-       (expand-file-name
-        (read-directory-name "Magento root directory: " nil nil t)))))
+  "Return the Magento root a command runs in, prompting if needed."
+  (magento-cache-clean--root t))
 
 ;;; Arguments
 
