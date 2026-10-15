@@ -41,7 +41,9 @@ Clone the repository and add it to your =load-path=:
 
 ** Transient interface
 
-Run =M-x magento-cache-clean-transient= to open the transient UI where you can:
+Run =M-x magento-cache-clean-transient= to open the transient UI.  The
+Magento root is detected when the menu opens (with =C-u=, or when it
+can't be detected, you are prompted for it).  In the menu you can:
 
 - Select verbosity level (silent / verbose / debug)
 - Toggle =--keep-generated= and =--no-flood-guard= flags

@@ -84,9 +84,16 @@ can't be found, prompt for it if PROMPT is non-nil, else return nil."
       (file-name-as-directory (expand-file-name dir))
     (and prompt (magento-cache-clean--read-root))))
 
+(defun magento-cache-clean--menu-root ()
+  "Return the root chosen in `magento-cache-clean-transient', or nil.
+Only non-nil while a command runs from that menu."
+  (and (eq transient-current-command 'magento-cache-clean-transient)
+       (transient-scope)))
+
 (defun magento-cache-clean--directory ()
   "Return the Magento root a command runs in, prompting if needed."
-  (magento-cache-clean--root t))
+  (or (magento-cache-clean--menu-root)
+      (magento-cache-clean--root t)))
 
 ;;; Arguments
 
@@ -125,11 +132,13 @@ When WATCH is non-nil, return the watch buffer name."
 
 (defun magento-cache-clean--watch-process (&optional root)
   "Return the watch process for Magento ROOT, or nil.
-ROOT defaults to the current watch buffer's root, else the current
-buffer's root."
+ROOT defaults to the current watch buffer's root, the menu's root or
+the current buffer's root, in that order."
   (if (and (not root) (derived-mode-p 'magento-cache-clean-watch-mode))
       (get-buffer-process (current-buffer))
-    (when-let* ((root (or root (magento-cache-clean--root)))
+    (when-let* ((root (or root
+                          (magento-cache-clean--menu-root)
+                          (magento-cache-clean--root)))
                 (buf (get-buffer (magento-cache-clean--buffer-name root t))))
       (get-buffer-process buf))))
 
@@ -253,13 +262,16 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   :argument "--types="
   :multi-value 'repeat)
 
+(defun magento-cache-clean--transient-description ()
+  "Return the heading of `magento-cache-clean-transient'."
+  (format "Magento dir: %s" (abbreviate-file-name (transient-scope))))
+
 ;;;###autoload (autoload 'magento-cache-clean-transient "magento-cache-clean" nil t)
-(transient-define-prefix magento-cache-clean-transient ()
-  "Transient interface for magento-cache-clean."
-  [:description
-   (lambda ()
-     (format "Magento dir: %s"
-             (or (magento-cache-clean--root) "not detected")))
+(transient-define-prefix magento-cache-clean-transient (&optional choose-root)
+  "Transient interface for magento-cache-clean.
+The Magento root is detected when the menu opens.  With a prefix
+argument CHOOSE-ROOT, or when it can't be detected, prompt for it."
+  [:description magento-cache-clean--transient-description
    ["Options"
     (magento-cache-clean--infix-verbosity)
     ("-k" "Keep generated" "--keep-generated")
@@ -270,7 +282,12 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
    ["Actions"
     ("c" "Clean" magento-cache-clean)
     ("w" "Watch" magento-cache-clean-watch)
-    ("s" "Stop watch" magento-cache-clean-watch-stop)]])
+    ("s" "Stop watch" magento-cache-clean-watch-stop)]]
+  (interactive "P")
+  (transient-setup 'magento-cache-clean-transient nil nil
+                   :scope (if choose-root
+                              (magento-cache-clean--read-root)
+                            (magento-cache-clean--root t))))
 
 (provide 'magento-cache-clean)
 ;;; magento-cache-clean.el ends here

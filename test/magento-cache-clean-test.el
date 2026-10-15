@@ -130,6 +130,13 @@ Return its absolute path."
             (should-not (magento-cache-clean--root))))
       (delete-directory temp-dir t))))
 
+(ert-deftest magento-cache-clean-test-directory-uses-menu-root ()
+  "Commands run from the menu use the root it was opened with."
+  (let ((transient-current-command 'magento-cache-clean-transient)
+        (magento-cache-clean-directory "/elsewhere/"))
+    (cl-letf (((symbol-function 'transient-scope) (lambda () "/menu/root/")))
+      (should (equal "/menu/root/" (magento-cache-clean--directory))))))
+
 (ert-deftest magento-cache-clean-test-directory-uses-custom ()
   "Use custom directory when set."
   (let ((temp-dir (make-temp-file "magento-test" t)))
