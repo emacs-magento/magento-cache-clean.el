@@ -55,10 +55,36 @@
   :prefix "magento-cache-clean-"
   :link '(url-link "https://github.com/mage-os/magento-cache-clean"))
 
-;; Not marked safe: a .dir-locals.el could otherwise run any program.
-(defcustom magento-cache-clean-executable "cache-clean"
-  "Path to the cache-clean executable."
-  :type 'string)
+(defconst magento-cache-clean--candidates
+  '(("vendor/bin/cache-clean.js" . t)
+    ("cache-clean" . nil)
+    ("cache-clean.js" . t))
+  "Executables auto-detection tries, in order, and whether they need node.")
+
+(defcustom magento-cache-clean-executable 'auto
+  "The cache-clean executable.
+`auto' uses the first one found of the Magento root's
+vendor/bin/cache-clean.js, cache-clean and cache-clean.js; the .js
+scripts are only used when node is found too.
+
+A string is a program name, looked up in variable `exec-path', or a
+file name.  A relative file name containing a slash is relative to the
+Magento root.
+
+A function is called with the Magento root and returns such a string,
+or nil to auto-detect.
+
+Only `auto' and the predefined names are safe as directory local
+values, since any other value could run any program."
+  :type '(choice (const :tag "Auto-detect" auto)
+                 (const "vendor/bin/cache-clean.js")
+                 (const "cache-clean")
+                 (const "cache-clean.js")
+                 (string :tag "Other")
+                 (function :tag "Function"))
+  :safe (lambda (v)
+          (or (eq v 'auto)
+              (assoc v magento-cache-clean--candidates))))
 
 (defcustom magento-cache-clean-directory nil
   "Magento root directory.
@@ -129,10 +155,58 @@ Outside the transient this is its saved or default value."
   (magento-cache-clean--transient-to-cli
    (transient-args 'magento-cache-clean-transient)))
 
+(defun magento-cache-clean--found-p (name root)
+  "Return non-nil if executable NAME is found for Magento ROOT.
+NAME is resolved as in `magento-cache-clean-executable'; on a remote
+ROOT it is looked up on the remote host."
+  (let ((default-directory root))
+    (if (string-search "/" name)
+        (file-executable-p (expand-file-name name root))
+      (executable-find name t))))
+
+(defun magento-cache-clean--auto-detect (root)
+  "Return the name of the first cache-clean executable found for ROOT.
+Signal a `user-error' when there is none."
+  (let ((node (magento-cache-clean--found-p "node" root))
+        (missing-node nil))
+    (or (seq-some (pcase-lambda (`(,name . ,needs-node))
+                    (when (magento-cache-clean--found-p name root)
+                      (if (and needs-node (not node))
+                          (ignore (push name missing-node))
+                        name)))
+                  magento-cache-clean--candidates)
+        (user-error "No cache-clean found (tried %s)%s"
+                    (mapconcat #'car magento-cache-clean--candidates ", ")
+                    (if missing-node
+                        (format "; %s found but node is missing"
+                                (string-join (nreverse missing-node) " and "))
+                      "")))))
+
+(defun magento-cache-clean--executable (root)
+  "Return the name of the cache-clean executable for Magento ROOT.
+See `magento-cache-clean-executable'.  Signal a `user-error' when
+auto-detection finds none."
+  (let ((exe magento-cache-clean-executable))
+    (or (cond ((stringp exe) exe)
+              ((and (not (eq exe 'auto)) (functionp exe))
+               (funcall exe root)))
+        (magento-cache-clean--auto-detect root))))
+
+(defun magento-cache-clean--program (name root)
+  "Return the program to run for executable NAME and Magento ROOT.
+A NAME containing a slash is a file name relative to ROOT; any other
+NAME is looked up in variable `exec-path' when the process starts."
+  (if (string-search "/" name)
+      (file-local-name (expand-file-name name root))
+    name))
+
 (defun magento-cache-clean--command (root args)
   "Return the cache-clean command line for ROOT and ARGS as a list.
-ROOT may be remote; cache-clean gets its local name."
-  `(,magento-cache-clean-executable "-d" ,(file-local-name root) ,@args))
+ROOT may be remote; cache-clean gets its local name.  The executable is
+resolved in the current buffer, whose variable `exec-path' may be
+local."
+  `(,(magento-cache-clean--program (magento-cache-clean--executable root) root)
+    "-d" ,(file-local-name root) ,@args))
 
 ;;; Buffers
 
@@ -214,6 +288,9 @@ The process inherits the current buffer's environment and variable
       (setq-local process-environment env
                   exec-path path)
       (setq magento-cache-clean--watch-args args)
+      (goto-char (point-max))
+      (insert (propertize (concat "$ " (combine-and-quote-strings command) "\n")
+                          'font-lock-face 'comint-highlight-input))
       ;; `comint-exec' deletes any process still running in BUF.
       (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
       (set-process-query-on-exit-flag (get-buffer-process buf) nil))
@@ -310,9 +387,22 @@ one of the running watchers read in the minibuffer."
   :argument "--types="
   :multi-value 'repeat)
 
+(defun magento-cache-clean--transient-executable (root)
+  "Describe the cache-clean executable for Magento ROOT in the menu.
+It is resolved in the buffer the menu was opened from."
+  (transient-with-shadowed-buffer
+    (condition-case err
+        (concat (magento-cache-clean--executable root)
+                (and (eq magento-cache-clean-executable 'auto) " (auto)"))
+      (user-error "not found")
+      (error (error-message-string err)))))
+
 (defun magento-cache-clean--transient-description ()
   "Return the heading of `magento-cache-clean-transient'."
-  (format "Magento dir: %s" (abbreviate-file-name (transient-scope))))
+  (let ((root (transient-scope)))
+    (format "Magento dir: %s   cache-clean: %s"
+            (abbreviate-file-name root)
+            (magento-cache-clean--transient-executable root))))
 
 (defun magento-cache-clean--transient-watching-p ()
   "Return non-nil if the menu's Magento root has a running watcher."

@@ -106,6 +106,129 @@ Return its absolute path."
     (should (equal '("cache-clean" "-d" "/var/www/")
                    (magento-cache-clean--command "/ssh:host:/var/www/" nil)))))
 
+(ert-deftest magento-cache-clean-test-command-relative-executable ()
+  "A relative executable with a slash is relative to the root."
+  (let ((magento-cache-clean-executable "vendor/bin/cache-clean.js"))
+    (should (equal '("/a/src/vendor/bin/cache-clean.js" "-d" "/a/src/")
+                   (magento-cache-clean--command "/a/src/" nil)))
+    (should (equal '("/var/www/vendor/bin/cache-clean.js" "-d" "/var/www/")
+                   (magento-cache-clean--command "/ssh:host:/var/www/" nil)))))
+
+(ert-deftest magento-cache-clean-test-watch-relative-executable ()
+  "Watch finds a relative executable from outside the root."
+  (magento-cache-clean-test--with-root root
+    (make-directory (expand-file-name "vendor/bin" root) t)
+    (magento-cache-clean-test--fake-executable
+     (expand-file-name "vendor/bin" root) "echo relative-ok")
+    (let* ((magento-cache-clean-executable "vendor/bin/fake-cache-clean")
+           (magento-cache-clean-directory root)
+           (default-directory temporary-file-directory)
+           (buf (magento-cache-clean-watch)))
+      (unwind-protect
+          (progn
+            (magento-cache-clean-test--wait-for-output buf "relative-ok")
+            (should (string-search "relative-ok"
+                                   (with-current-buffer buf (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+;;; Executable resolution
+
+(defmacro magento-cache-clean-test--with-programs (root programs vendor &rest body)
+  "Run BODY with only PROGRAMS on `exec-path' for Magento ROOT.
+PROGRAMS are names of fake executables.  When VENDOR is non-nil, ROOT
+also gets vendor/bin/cache-clean.js."
+  (declare (indent 3))
+  `(let ((bin (expand-file-name "fake-bin/" ,root)))
+     (make-directory bin t)
+     (dolist (program ,programs)
+       (let ((file (expand-file-name program bin)))
+         (write-region "#!/bin/sh\n" nil file)
+         (set-file-modes file #o755)))
+     (when ,vendor
+       (let ((dir (expand-file-name "vendor/bin/" ,root)))
+         (make-directory dir t)
+         (write-region "#!/bin/sh\n" nil (expand-file-name "cache-clean.js" dir))
+         (set-file-modes (expand-file-name "cache-clean.js" dir) #o755)))
+     (let ((exec-path (list bin))
+           (magento-cache-clean-executable 'auto))
+       ,@body)))
+
+(ert-deftest magento-cache-clean-test-auto-prefers-vendor ()
+  "Auto uses the root's vendor script first when node is found."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root
+        '("node" "cache-clean" "cache-clean.js") t
+      (should (equal "vendor/bin/cache-clean.js"
+                     (magento-cache-clean--executable root)))
+      (should (equal (expand-file-name "vendor/bin/cache-clean.js" root)
+                     (car (magento-cache-clean--command root nil)))))))
+
+(ert-deftest magento-cache-clean-test-auto-skips-scripts-without-node ()
+  "Without node, auto skips the .js scripts."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root
+        '("cache-clean.js" "cache-clean") t
+      (should (equal "cache-clean" (magento-cache-clean--executable root))))))
+
+(ert-deftest magento-cache-clean-test-auto-falls-back-to-js ()
+  "Auto uses cache-clean.js when it is the only one found."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("node" "cache-clean.js") nil
+      (should (equal "cache-clean.js" (magento-cache-clean--executable root))))))
+
+(ert-deftest magento-cache-clean-test-auto-none-found ()
+  "Auto signals an error naming what it tried."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root nil nil
+      (should (equal (cadr (should-error (magento-cache-clean--executable root)
+                                         :type 'user-error))
+                     (concat "No cache-clean found (tried vendor/bin/cache-clean.js,"
+                             " cache-clean, cache-clean.js)"))))))
+
+(ert-deftest magento-cache-clean-test-auto-none-found-missing-node ()
+  "The error says when a script was found but node wasn't."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean.js") t
+      (should (string-suffix-p
+               "; vendor/bin/cache-clean.js and cache-clean.js found but node is missing"
+               (cadr (should-error (magento-cache-clean--executable root)
+                                   :type 'user-error)))))))
+
+(ert-deftest magento-cache-clean-test-executable-string-unchecked ()
+  "A string is used as is, without checking that it exists."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root nil nil
+      (let ((magento-cache-clean-executable "no-such-cache-clean"))
+        (should (equal "no-such-cache-clean"
+                       (magento-cache-clean--executable root)))))))
+
+(ert-deftest magento-cache-clean-test-executable-function ()
+  "A function gets the root; nil from it means auto-detect."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean") nil
+      (let* ((seen nil)
+             (magento-cache-clean-executable
+              (lambda (r) (setq seen r) "bin/my-cache-clean")))
+        (should (equal "bin/my-cache-clean" (magento-cache-clean--executable root)))
+        (should (equal root seen))
+        (should (equal (expand-file-name "bin/my-cache-clean" root)
+                       (car (magento-cache-clean--command root nil)))))
+      (let ((magento-cache-clean-executable #'ignore))
+        (should (equal "cache-clean" (magento-cache-clean--executable root)))))))
+
+(ert-deftest magento-cache-clean-test-transient-executable ()
+  "The menu shows the executable, marks auto and survives none found."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean") nil
+      (should (equal "cache-clean (auto)"
+                     (magento-cache-clean--transient-executable root)))
+      (let ((magento-cache-clean-executable "cache-clean.js"))
+        (should (equal "cache-clean.js"
+                       (magento-cache-clean--transient-executable root))))
+      (let ((exec-path nil))
+        (should (equal "not found"
+                       (magento-cache-clean--transient-executable root)))))))
+
 ;;; Directory detection
 
 (ert-deftest magento-cache-clean-test-detect-directory-found ()
@@ -240,6 +363,23 @@ Return its absolute path."
                         (format "FOO=from-caller PWD=%s ARGS=-d %s --watch config"
                                 (directory-file-name root) root))
                        (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-shows-command ()
+  "The watch buffer starts with the command line it runs."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch '("config"))))
+      (unwind-protect
+          (with-current-buffer buf
+            (goto-char (point-min))
+            (should (looking-at-p
+                     (regexp-quote
+                      (format "$ %s -d %s --watch config\n"
+                              magento-cache-clean-executable root)))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
 (ert-deftest magento-cache-clean-test-watch-restart-starts-new-process ()
@@ -458,10 +598,13 @@ afterwards."
 
 ;;; Safe local variables
 
-(ert-deftest magento-cache-clean-test-executable-not-safe-local ()
-  "Executable is never safe as a dir-local, since it is run as is."
-  (should-not (safe-local-variable-p 'magento-cache-clean-executable "cache-clean"))
-  (should-not (safe-local-variable-p 'magento-cache-clean-executable "/tmp/evil")))
+(ert-deftest magento-cache-clean-test-executable-safe-local ()
+  "Only auto and the predefined executables are safe as dir-locals."
+  (dolist (v '(auto "vendor/bin/cache-clean.js" "cache-clean" "cache-clean.js"))
+    (should (safe-local-variable-p 'magento-cache-clean-executable v)))
+  (should-not (safe-local-variable-p 'magento-cache-clean-executable "/tmp/evil"))
+  (should-not (safe-local-variable-p 'magento-cache-clean-executable "bin/evil"))
+  (should-not (safe-local-variable-p 'magento-cache-clean-executable 'ignore)))
 
 (ert-deftest magento-cache-clean-test-directory-safe-local ()
   "Directory is safe as a dir-local when string or nil."

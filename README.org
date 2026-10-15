@@ -17,7 +17,9 @@ Emacs integration for [[https://github.com/mage-os/magento-cache-clean][mage-os/
 * Requirements
 
 - Emacs 30.1+
-- [[https://github.com/mage-os/magento-cache-clean][cache-clean]] installed and on =PATH=
+- [[https://github.com/mage-os/magento-cache-clean][cache-clean]], either installed in the project with composer
+  (=vendor/bin/cache-clean.js=) or on =PATH= as =cache-clean= or =cache-clean.js=
+- =node=, for the =.js= scripts
 
 * Installation
 
@@ -100,19 +102,51 @@ Output buffers are named after the Magento root, so they can be placed with
 
 | Variable                                 | Description                                 | Default         |
 |------------------------------------------+---------------------------------------------+-----------------|
-| =magento-cache-clean-executable=         | Path to the cache-clean binary              | ="cache-clean"= |
+| =magento-cache-clean-executable=         | Which cache-clean to run (see below)        | =auto=          |
 | =magento-cache-clean-directory=          | Magento root (nil = auto-detect)            | =nil=           |
 | =magento-cache-clean-error-regexp-alist= | Regexps that make one-shot output clickable | =nil=           |
 
-=magento-cache-clean-directory= is safe for use in =.dir-locals.el=:
+** Executable
+
+With the default =auto=, the first one found of these is used:
+
+1. =vendor/bin/cache-clean.js= in the Magento root (composer install)
+2. =cache-clean= on =PATH=
+3. =cache-clean.js= on =PATH=
+
+The =.js= scripts are skipped when =node= isn't found.  If nothing is
+found, the command stops with an error listing what it tried.  The menu
+heading shows which executable will run.
+
+Note that =auto= runs the project's own =vendor/bin/cache-clean.js=, so
+only use it in projects whose code you trust, as you would =bin/magento=.
+
+To force one, set =magento-cache-clean-executable= to one of those three
+names, or to any program name or file name.  A relative file name with a
+=/= is relative to the Magento root.  It can also be a function that
+takes the Magento root and returns such a string, or nil to auto-detect:
 
 #+begin_src emacs-lisp
-((nil . ((magento-cache-clean-directory . "/path/to/magento"))))
+(setq magento-cache-clean-executable
+      (lambda (root)
+        (when (string-match-p "/legacy-shop/" root)
+          "~/bin/cache-clean-1.0")))
 #+end_src
 
-=magento-cache-clean-executable= is not marked safe, since a
-=.dir-locals.el= could otherwise run any program.  Emacs asks before
-applying it; answer =!= to remember the value.
+** Directory local variables
+
+=magento-cache-clean-directory= is safe for use in =.dir-locals.el=, and so
+is =magento-cache-clean-executable= when it is =auto= or one of the three
+names above:
+
+#+begin_src emacs-lisp
+((nil . ((magento-cache-clean-directory . "/path/to/magento")
+         (magento-cache-clean-executable . "cache-clean"))))
+#+end_src
+
+Any other executable value is not marked safe, since a =.dir-locals.el=
+could otherwise run any program.  Emacs asks before applying it; answer
+=!= to remember the value.
 
 * Development
 
