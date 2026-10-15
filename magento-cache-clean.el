@@ -69,11 +69,23 @@ When nil, auto-detected by searching for app/etc/env.php."
 
 ;;; Directory detection
 
+(defun magento-cache-clean--known-roots ()
+  "Return the Magento roots that have a cache-clean buffer."
+  (delete-dups
+   (mapcar (lambda (buf) (buffer-local-value 'default-directory buf))
+           (match-buffers '(or (derived-mode . magento-cache-clean-mode)
+                               (derived-mode . magento-cache-clean-watch-mode))))))
+
 (defun magento-cache-clean--read-root ()
-  "Read a Magento root directory in the minibuffer."
+  "Read a Magento root directory in the minibuffer.
+The roots that already have a cache-clean buffer are offered as
+defaults, reachable with \\<minibuffer-local-map>\\[next-history-element]."
   (file-name-as-directory
    (expand-file-name
-    (read-directory-name "Magento root directory: " nil nil t))))
+    (read-directory-name "Magento root directory: " nil
+                         (cons default-directory
+                               (magento-cache-clean--known-roots))
+                         t))))
 
 (defun magento-cache-clean--root (&optional prompt)
   "Return the configured or detected Magento root.
@@ -130,6 +142,11 @@ When WATCH is non-nil, return the watch buffer name."
   (format "*magento-cache-clean%s: %s*"
           (if watch "-watch" "")
           (abbreviate-file-name (directory-file-name root))))
+
+(defun magento-cache-clean--watch-buffers ()
+  "Return the watch buffers with a running watcher."
+  (seq-filter (lambda (buf) (process-live-p (get-buffer-process buf)))
+              (match-buffers '(derived-mode . magento-cache-clean-watch-mode))))
 
 (defun magento-cache-clean--watch-process (&optional root)
   "Return the watch process for Magento ROOT, or nil.
@@ -198,7 +215,7 @@ The process inherits the current buffer's environment and variable
                   exec-path path)
       (setq magento-cache-clean--watch-args args)
       ;; `comint-exec' deletes any process still running in BUF.
-      (comint-exec buf "magento-cache-clean" (car command) nil (cdr command))
+      (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
       (set-process-query-on-exit-flag (get-buffer-process buf) nil))
     buf))
 
@@ -237,15 +254,44 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   (magento-cache-clean--watch-start default-directory
                                     magento-cache-clean--watch-args))
 
-;;;###autoload
-(defun magento-cache-clean-watch-stop ()
-  "Stop the running watch process."
-  (interactive)
+(defun magento-cache-clean--read-watch-buffer ()
+  "Return the watch buffer a stop command acts on.
+This is the watcher of the current Magento root when there is one.
+Otherwise, read one of the running watchers in the minibuffer."
   (if-let* ((proc (magento-cache-clean--watch-process)))
-      (progn
-        (interrupt-process proc)
-        (message "magento-cache-clean watch stopped"))
-    (user-error "No watch process running")))
+      (process-buffer proc)
+    (let ((watchers (mapcar (lambda (buf)
+                              (cons (buffer-local-value 'default-directory buf)
+                                    buf))
+                            (magento-cache-clean--watch-buffers))))
+      (unless watchers
+        (user-error "No watch process running"))
+      (cdr (assoc (completing-read "Stop watcher: " watchers nil t nil nil
+                                   (caar watchers))
+                  watchers)))))
+
+;;;###autoload
+(defun magento-cache-clean-watch-stop (&optional buffer)
+  "Stop the watcher running in watch BUFFER.
+BUFFER defaults to the watcher of the current Magento root, or else
+one of the running watchers read in the minibuffer."
+  (interactive)
+  (setq buffer (or buffer (magento-cache-clean--read-watch-buffer)))
+  (interrupt-process (get-buffer-process buffer))
+  (message "magento-cache-clean watch stopped in %s"
+           (abbreviate-file-name (buffer-local-value 'default-directory buffer))))
+
+;;;###autoload
+(defun magento-cache-clean-watch-stop-all ()
+  "Stop all running watchers."
+  (interactive)
+  (let ((buffers (magento-cache-clean--watch-buffers)))
+    (unless buffers
+      (user-error "No watch process running"))
+    (dolist (buf buffers)
+      (interrupt-process (get-buffer-process buf)))
+    (message "Stopped %d magento-cache-clean watcher%s"
+             (length buffers) (if (cdr buffers) "s" ""))))
 
 ;;; Transient
 
@@ -293,7 +339,9 @@ argument CHOOSE-ROOT, or when it can't be detected, prompt for it."
                         "Restart watch"
                       "Watch")))
     ("s" "Stop watch" magento-cache-clean-watch-stop
-     :inapt-if-not magento-cache-clean--transient-watching-p)]]
+     :inapt-if-not magento-cache-clean--transient-watching-p)
+    ("S" "Stop all watchers" magento-cache-clean-watch-stop-all
+     :inapt-if-not magento-cache-clean--watch-buffers)]]
   (interactive "P")
   (transient-setup 'magento-cache-clean-transient nil nil
                    :scope (if choose-root

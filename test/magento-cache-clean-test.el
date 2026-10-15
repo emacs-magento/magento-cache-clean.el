@@ -353,6 +353,99 @@ Return its absolute path."
                                      (buffer-string)))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+;;; Multiple instances
+
+(defmacro magento-cache-clean-test--with-watchers (roots &rest body)
+  "Start a sleeping watcher in each of ROOTS while running BODY.
+ROOTS are bound to temporary Magento roots; their buffers are killed
+afterwards."
+  (declare (indent 1))
+  (if (null roots)
+      `(progn ,@body)
+    `(magento-cache-clean-test--with-root ,(car roots)
+       (let ((magento-cache-clean-executable
+              (magento-cache-clean-test--fake-executable
+               ,(car roots) "exec sleep 30"))
+             (magento-cache-clean-directory nil))
+         (unwind-protect
+             (progn
+               (let ((default-directory ,(car roots)))
+                 (magento-cache-clean-watch))
+               (magento-cache-clean-test--with-watchers ,(cdr roots)
+                 ,@body))
+           (when-let* ((buf (get-buffer (magento-cache-clean--buffer-name
+                                         ,(car roots) t))))
+             (kill-buffer buf)))))))
+
+(defun magento-cache-clean-test--watch-buffer (root)
+  "Return the watch buffer of ROOT."
+  (get-buffer (magento-cache-clean--buffer-name root t)))
+
+(ert-deftest magento-cache-clean-test-watchers-per-root ()
+  "Each root gets its own watcher, named after its buffer."
+  (magento-cache-clean-test--with-watchers (a b)
+    (let ((bufs (magento-cache-clean--watch-buffers)))
+      (should (memq (magento-cache-clean-test--watch-buffer a) bufs))
+      (should (memq (magento-cache-clean-test--watch-buffer b) bufs))
+      (dolist (root (list a b))
+        (let ((buf (magento-cache-clean-test--watch-buffer root)))
+          (should (equal (buffer-name buf)
+                         (process-name (get-buffer-process buf)))))))))
+
+(ert-deftest magento-cache-clean-test-stop-uses-current-root ()
+  "Inside a watched root, stop acts on its watcher without asking."
+  (magento-cache-clean-test--with-watchers (a b)
+    (let ((default-directory a))
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (&rest _) (error "Unexpected prompt"))))
+        (magento-cache-clean-watch-stop)))
+    (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer a))
+    (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer a)))
+    (should (get-buffer-process (magento-cache-clean-test--watch-buffer b)))))
+
+(ert-deftest magento-cache-clean-test-stop-elsewhere-reads-watcher ()
+  "Outside a watched root, stop reads which watcher to stop."
+  (magento-cache-clean-test--with-watchers (a b)
+    (let ((default-directory temporary-file-directory)
+          (offered nil))
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (_prompt collection &rest _)
+                   (setq offered (mapcar #'car collection))
+                   b)))
+        (magento-cache-clean-watch-stop))
+      (should (member a offered))
+      (should (member b offered)))
+    (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer b))
+    (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer b)))
+    (should (get-buffer-process (magento-cache-clean-test--watch-buffer a)))))
+
+(ert-deftest magento-cache-clean-test-stop-nothing-running ()
+  "Stopping with no watcher running is a user error."
+  (let ((default-directory temporary-file-directory))
+    (cl-letf (((symbol-function 'magento-cache-clean--watch-buffers) #'ignore))
+      (should-error (magento-cache-clean-watch-stop) :type 'user-error))))
+
+(ert-deftest magento-cache-clean-test-stop-all ()
+  "Stop all interrupts every running watcher."
+  (magento-cache-clean-test--with-watchers (a b)
+    (magento-cache-clean-watch-stop-all)
+    (dolist (root (list a b))
+      (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer root)))
+    (should-not (magento-cache-clean--watch-buffers))))
+
+(ert-deftest magento-cache-clean-test-read-root-offers-known-roots ()
+  "The root prompt offers the roots that already have buffers."
+  (magento-cache-clean-test--with-watchers (a)
+    (let ((default-directory temporary-file-directory)
+          (defaults nil))
+      (cl-letf (((symbol-function 'read-directory-name)
+                 (lambda (_prompt _dir default &rest _)
+                   (setq defaults default)
+                   a)))
+        (should (equal a (magento-cache-clean--read-root))))
+      (should (equal temporary-file-directory (car defaults)))
+      (should (member a defaults)))))
+
 ;;; Error regexps
 
 (ert-deftest magento-cache-clean-test-error-regexps-customizable ()
