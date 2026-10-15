@@ -76,6 +76,19 @@ the watcher starts; see the [[https://github.com/mage-os/magento-cache-clean#hot
 
 =C-c C-c= stops the watcher.
 
+** Window placement
+
+Output buffers are named after the Magento root, so they can be placed with
+=display-buffer-alist=:
+
+#+begin_src emacs-lisp
+(add-to-list 'display-buffer-alist
+             '("\\`\\*magento-cache-clean-watch: "
+               (display-buffer-in-side-window)
+               (side . bottom)
+               (window-height . 0.25)))
+#+end_src
+
 * Customization
 
 | Variable                                 | Description                                 | Default         |
