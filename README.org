@@ -94,6 +94,15 @@ the watcher starts; see the [[https://github.com/mage-os/magento-cache-clean#hot
 =.dir-locals.el= could otherwise run any program.  Emacs asks before
 applying it; answer =!= to remember the value.
 
+* Development
+
+#+begin_src sh
+make          # byte-compile, checkdoc, package-lint, tests
+make test     # tests only
+#+end_src
+
+=make package-lint= installs package-lint from MELPA into =.deps/= first.
+
 * License
 
 GPL-3.0-or-later. See [[file:LICENSE][LICENSE]].
