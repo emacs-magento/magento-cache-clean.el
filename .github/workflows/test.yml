@@ -19,6 +19,12 @@ jobs:
         with:
           version: ${{ matrix.emacs-version }}
 
+      - name: Byte-compile
+        run: |
+          emacs --batch -L . \
+            --eval '(setq byte-compile-error-on-warn t)' \
+            -f batch-byte-compile magento-cache-clean.el
+
       - name: Run tests
         run: |
           emacs --batch \
