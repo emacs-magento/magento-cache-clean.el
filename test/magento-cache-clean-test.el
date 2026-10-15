@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'magento-cache-clean)
 
@@ -31,24 +32,28 @@ Return its absolute path."
     (set-file-modes file #o755)
     file))
 
+(defun magento-cache-clean-test--wait-until (predicate)
+  "Wait up to 5 seconds for PREDICATE to return non-nil."
+  (let ((deadline (+ (float-time) 5)))
+    (while (and (not (funcall predicate))
+                (< (float-time) deadline))
+      (accept-process-output nil 0.05))))
+
 (defun magento-cache-clean-test--wait (buffer)
   "Wait up to 5 seconds for BUFFER's process to exit."
-  (let ((deadline (+ (float-time) 5)))
-    (while (and (process-live-p (get-buffer-process buffer))
-                (< (float-time) deadline))
-      (accept-process-output nil 0.05))
-    ;; Let the sentinel and filter flush the remaining output.
-    (accept-process-output nil 0.1)))
+  (magento-cache-clean-test--wait-until
+   (lambda () (not (process-live-p (get-buffer-process buffer)))))
+  ;; Let the sentinel and filter flush the remaining output.
+  (accept-process-output nil 0.1))
 
 (defun magento-cache-clean-test--wait-for-output (buffer regexp)
   "Wait up to 5 seconds for REGEXP to appear in BUFFER."
-  (let ((deadline (+ (float-time) 5)))
-    (while (and (not (with-current-buffer buffer
-                       (save-excursion
-                         (goto-char (point-min))
-                         (re-search-forward regexp nil t))))
-                (< (float-time) deadline))
-      (accept-process-output nil 0.05))))
+  (magento-cache-clean-test--wait-until
+   (lambda ()
+     (with-current-buffer buffer
+       (save-excursion
+         (goto-char (point-min))
+         (re-search-forward regexp nil t))))))
 
 ;;; Transient argument conversion
 
@@ -253,7 +258,8 @@ Return its absolute path."
             (let ((second (get-buffer-process buf)))
               (should second)
               (should-not (eq first second))
-              (accept-process-output nil 0.2)
+              (magento-cache-clean-test--wait-until
+               (lambda () (not (process-live-p first))))
               (should (process-live-p second))
               (should-not (process-live-p first))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
@@ -279,13 +285,13 @@ Return its absolute path."
   (magento-cache-clean-test--with-root root
     (let* ((magento-cache-clean-executable
             (magento-cache-clean-test--fake-executable
-             root "stty raw -echo; key=$(dd bs=1 count=1 2>/dev/null); echo \"got:$key\""))
+             root "stty raw -echo; echo ready; key=$(dd bs=1 count=1 2>/dev/null); echo \"got:$key\""))
            (default-directory root)
            (magento-cache-clean-directory nil)
            (buf (magento-cache-clean-watch)))
       (unwind-protect
           (with-current-buffer buf
-            (accept-process-output nil 0.3)
+            (magento-cache-clean-test--wait-for-output buf "ready")
             (let ((last-command-event ?G))
               (call-interactively #'magento-cache-clean-watch-send-key))
             (magento-cache-clean-test--wait-for-output buf "got:G")
