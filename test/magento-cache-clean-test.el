@@ -62,9 +62,9 @@ Return its absolute path."
                  (magento-cache-clean--transient-to-cli
                   '("--debug" "--keep-generated" "--no-flood-guard")))))
 
-(ert-deftest magento-cache-clean-test-transient-to-cli-types-after-flags ()
-  "Cache types become positional args after the switches."
-  (should (equal '("--verbose" "--keep-generated" "config" "layout")
+(ert-deftest magento-cache-clean-test-transient-to-cli-types-positional ()
+  "Cache types become positional args; cache-clean takes them anywhere."
+  (should (equal '("--verbose" "config" "--keep-generated" "layout")
                  (magento-cache-clean--transient-to-cli
                   '("--verbose" "--types=config" "--keep-generated"
                     "--types=layout")))))

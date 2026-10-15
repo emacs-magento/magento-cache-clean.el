@@ -92,14 +92,14 @@ can't be found, prompt for it if PROMPT is non-nil, else return nil."
 
 (defun magento-cache-clean--transient-to-cli (args)
   "Convert transient ARGS to cache-clean command line arguments.
-Switches are passed through and each --types=TYPE becomes a positional
-TYPE after them."
-  (let (flags types)
-    (dolist (arg args)
-      (if (string-prefix-p "--types=" arg)
-          (push (string-remove-prefix "--types=" arg) types)
-        (push arg flags)))
-    (nconc (nreverse flags) (nreverse types))))
+Each --types=TYPE becomes a positional TYPE; cache-clean accepts them
+anywhere among the switches."
+  (mapcan (lambda (arg)
+            (pcase arg
+              ((rx bos "--types=" (let type (+ anything)))
+               (list type))
+              (_ (list arg))))
+          args))
 
 (defun magento-cache-clean--arguments ()
   "Return the cache-clean arguments set in `magento-cache-clean-transient'.
