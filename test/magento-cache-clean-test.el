@@ -1572,6 +1572,13 @@ afterwards."
       (should-not (eq first (get-buffer-process
                              (magento-cache-clean-test--watch-buffer a)))))))
 
+(ert-deftest magento-cache-clean-test-arguments-outside-menu-skip-root ()
+  "Reading the menu's arguments outside it doesn't look up a root.
+That is slow when remote, and the command looks it up anyway."
+  (cl-letf (((symbol-function 'magento-cache-clean--root)
+             (lambda (&rest _) (error "Unexpected root lookup"))))
+    (should (listp (magento-cache-clean--arguments)))))
+
 (ert-deftest magento-cache-clean-test-stop-nothing-running ()
   "Stopping with no watcher running is a user error."
   (let ((default-directory temporary-file-directory))
