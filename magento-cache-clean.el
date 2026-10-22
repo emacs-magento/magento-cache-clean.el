@@ -278,15 +278,23 @@ When WATCH is non-nil, return the watch buffer name."
   (match-buffers `(and (derived-mode . magento-cache-clean-watch-mode)
                        ,(lambda (buf) (process-live-p (get-buffer-process buf))))))
 
+(defun magento-cache-clean--root-watch-buffer (root)
+  "Return the watch buffer of Magento ROOT, or nil if there is none.
+It is found by its root rather than its name, which may have changed."
+  (car (match-buffers
+        `(and (derived-mode . magento-cache-clean-watch-mode)
+              ,(lambda (buf)
+                 (equal root (buffer-local-value 'default-directory buf)))))))
+
 (defun magento-cache-clean--watch-buffer (&optional root)
   "Return the watch buffer for Magento ROOT, or nil if there is none.
 ROOT defaults to the menu's root, the current watch buffer's root or
 the current buffer's root, in that order."
   (let ((root (or root (magento-cache-clean--menu-root))))
-    (cond (root (get-buffer (magento-cache-clean--buffer-name root t)))
+    (cond (root (magento-cache-clean--root-watch-buffer root))
           ((derived-mode-p 'magento-cache-clean-watch-mode) (current-buffer))
           ((when-let* ((root (magento-cache-clean--root)))
-             (get-buffer (magento-cache-clean--buffer-name root t)))))))
+             (magento-cache-clean--root-watch-buffer root))))))
 
 (defun magento-cache-clean--watch-process (&optional root)
   "Return the live watch process for Magento ROOT, or nil.
@@ -396,7 +404,8 @@ restarted."
          (path (and same-host (local-variable-p 'exec-path) exec-path))
          ;; Before creating the buffer, as no executable may be found.
          (command (magento-cache-clean--command root (cons "--watch" args)))
-         (buf (get-buffer-create (magento-cache-clean--buffer-name root t))))
+         (buf (or (magento-cache-clean--root-watch-buffer root)
+                  (get-buffer-create (magento-cache-clean--buffer-name root t)))))
     (with-current-buffer buf
       (unless (derived-mode-p 'magento-cache-clean-watch-mode)
         (magento-cache-clean-watch-mode))
