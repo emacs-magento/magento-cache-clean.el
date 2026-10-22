@@ -115,7 +115,9 @@ The value takes effect for watchers started afterwards."
   "Seconds to wait for a watcher to be interrupted.
 Interrupting a remote watcher waits for its host, so this keeps a lost
 connection from hanging Emacs exit, killing a watch buffer or stopping
-watchers."
+watchers.  Watchers are interrupted one at a time, so with several
+lost connections, exiting Emacs or stopping all watchers waits this
+long for each."
   :type 'number)
 
 (defcustom magento-cache-clean-error-regexp-alist nil
