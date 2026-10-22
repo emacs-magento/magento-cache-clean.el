@@ -94,6 +94,17 @@ Return its absolute path."
 
 ;;; Command line
 
+(ert-deftest magento-cache-clean-test-file-list-reads-from-root ()
+  "The file list is read starting in the menu's root."
+  (let ((dir nil))
+    (cl-letf (((symbol-function 'transient-scope)
+               (lambda () '(:root "/menu/root/")))
+              ((symbol-function 'read-file-name)
+               (lambda (&rest _) (setq dir default-directory) "list.txt")))
+      (should (equal "/menu/root/list.txt"
+                     (magento-cache-clean--read-file-list "File: " nil nil))))
+    (should (equal "/menu/root/" dir))))
+
 (ert-deftest magento-cache-clean-test-command ()
   "The command line has the executable, the root and the args."
   (let ((magento-cache-clean-executable "cache-clean"))

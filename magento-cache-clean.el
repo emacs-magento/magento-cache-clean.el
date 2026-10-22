@@ -445,6 +445,12 @@ refresh is slow on a remote ROOT."
   "Return non-nil if the menu's Magento root has a running watcher."
   (magento-cache-clean--watch-process (plist-get (transient-scope) :root)))
 
+(defun magento-cache-clean--read-file-list (prompt initial-input history)
+  "Read an existing file for --file-list, starting in the menu's root.
+PROMPT, INITIAL-INPUT and HISTORY are as for a transient reader."
+  (let ((default-directory (plist-get (transient-scope) :root)))
+    (transient-read-existing-file prompt initial-input history)))
+
 ;;;###autoload (autoload 'magento-cache-clean-transient "magento-cache-clean" nil t)
 (transient-define-prefix magento-cache-clean-transient (&optional choose-root)
   "Transient interface for magento-cache-clean.
@@ -455,7 +461,7 @@ argument CHOOSE-ROOT, or when it can't be detected, prompt for it."
     (magento-cache-clean--infix-verbosity)
     ("-k" "Keep generated" "--keep-generated")
     ("-n" "No flood guard" "--no-flood-guard")
-    ("-f" "File list" "--file-list=" :reader transient-read-existing-file)]
+    ("-f" "File list" "--file-list=" :reader magento-cache-clean--read-file-list)]
    ["Cache types"
     (magento-cache-clean--infix-cache-types)]
    ["Actions"
