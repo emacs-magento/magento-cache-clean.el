@@ -160,9 +160,16 @@ could otherwise run any program.  Emacs asks before applying it; answer
 #+begin_src sh
 make          # byte-compile, checkdoc, package-lint, tests
 make test     # tests only
+make test SELECTOR='(not (tag docker))'   # without the Docker tests
 #+end_src
 
 =make package-lint= installs package-lint from MELPA into =.deps/= first.
+
+The tests tagged =docker= run the real cache-clean in a container
+built from =test/docker/=, reached through Tramp as a remote Magento
+root.  They are skipped when Docker isn't available, unless
+=MAGENTO_CACHE_CLEAN_REQUIRE_DOCKER= is set, as in CI.  The image is
+built on first use and rebuilt when its files change.
 
 * License
 

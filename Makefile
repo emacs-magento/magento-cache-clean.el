@@ -1,4 +1,6 @@
 EMACS ?= emacs
+# An ERT selector, such as '(not (tag docker))' to skip the Docker tests.
+SELECTOR ?= t
 BATCH = $(EMACS) -Q --batch -L .
 DEPS_DIR = .deps
 PACKAGES = --eval "(progn (require 'package) \
@@ -12,7 +14,8 @@ all: compile lint test
 
 compile:
 	$(BATCH) -L test --eval '(setq byte-compile-error-on-warn t)' \
-	  -f batch-byte-compile magento-cache-clean.el test/magento-cache-clean-test.el
+	  -f batch-byte-compile magento-cache-clean.el test/magento-cache-clean-test.el \
+	  test/magento-cache-clean-docker-test.el
 
 checkdoc:
 	$(BATCH) --eval "(setq checkdoc-create-error-function \
@@ -27,7 +30,8 @@ package-lint: $(DEPS_DIR)
 lint: checkdoc package-lint
 
 test:
-	$(BATCH) -L test -l magento-cache-clean-test -f ert-run-tests-batch-and-exit
+	$(BATCH) -L test -l magento-cache-clean-test -l magento-cache-clean-docker-test \
+	  --eval "(ert-run-tests-batch-and-exit (quote $(SELECTOR)))"
 
 deps: $(DEPS_DIR)
 
