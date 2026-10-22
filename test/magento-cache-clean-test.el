@@ -257,6 +257,16 @@ also gets vendor/bin/cache-clean.js."
                            (magento-cache-clean--transient-executable
                             (magento-cache-clean--transient-scope "/a/src/"))))))
 
+(ert-deftest magento-cache-clean-test-executable-function-empty-result ()
+  "A function returning an empty string is an error, not a program name."
+  (let ((magento-cache-clean-executable (lambda (_) "")))
+    (should-not (eq 'user-error
+                    (car (should-error
+                          (magento-cache-clean--executable "/a/src/")))))
+    (should (string-search "returned \"\""
+                           (magento-cache-clean--transient-executable
+                            (magento-cache-clean--transient-scope "/a/src/"))))))
+
 (ert-deftest magento-cache-clean-test-transient-executable ()
   "The menu shows the executable, marks auto and explains none found."
   (magento-cache-clean-test--with-root root
