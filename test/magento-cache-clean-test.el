@@ -838,6 +838,24 @@ afterwards."
           (should (equal (buffer-name buf)
                          (process-name (get-buffer-process buf)))))))))
 
+(ert-deftest magento-cache-clean-test-watch-buffer-defaults ()
+  "The watch buffer is the menu root's, else the current one, else the root's."
+  (magento-cache-clean-test--with-watchers (a b)
+    (let ((buf-a (magento-cache-clean-test--watch-buffer a))
+          (buf-b (magento-cache-clean-test--watch-buffer b)))
+      (with-current-buffer buf-a
+        (let ((magento-cache-clean-directory b))
+          (should (eq buf-a (magento-cache-clean--watch-buffer)))
+          (let ((transient-current-command 'magento-cache-clean-transient))
+            (cl-letf (((symbol-function 'transient-scope)
+                       (lambda () (list :root b))))
+              (should (eq buf-b (magento-cache-clean--watch-buffer)))))))
+      (let ((default-directory b))
+        (should (eq buf-b (magento-cache-clean--watch-buffer)))
+        (should (eq buf-a (magento-cache-clean--watch-buffer a)))))
+    (let ((default-directory temporary-file-directory))
+      (should-not (magento-cache-clean--watch-buffer)))))
+
 (ert-deftest magento-cache-clean-test-stop-by-buffer-name ()
   "Stop takes the watch buffer's name too."
   (magento-cache-clean-test--with-watchers (a)

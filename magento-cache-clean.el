@@ -259,17 +259,21 @@ When WATCH is non-nil, return the watch buffer name."
   (match-buffers `(and (derived-mode . magento-cache-clean-watch-mode)
                        ,(lambda (buf) (process-live-p (get-buffer-process buf))))))
 
-(defun magento-cache-clean--watch-process (&optional root)
-  "Return the live watch process for Magento ROOT, or nil.
+(defun magento-cache-clean--watch-buffer (&optional root)
+  "Return the watch buffer for Magento ROOT, or nil if there is none.
 ROOT defaults to the menu's root, the current watch buffer's root or
 the current buffer's root, in that order."
-  (let* ((root (or root (magento-cache-clean--menu-root)))
-         (buf (if (and (not root)
-                       (derived-mode-p 'magento-cache-clean-watch-mode))
-                  (current-buffer)
-                (when-let* ((root (or root (magento-cache-clean--root))))
-                  (get-buffer (magento-cache-clean--buffer-name root t)))))
-         (proc (and buf (get-buffer-process buf))))
+  (let ((root (or root (magento-cache-clean--menu-root))))
+    (cond (root (get-buffer (magento-cache-clean--buffer-name root t)))
+          ((derived-mode-p 'magento-cache-clean-watch-mode) (current-buffer))
+          ((when-let* ((root (magento-cache-clean--root)))
+             (get-buffer (magento-cache-clean--buffer-name root t)))))))
+
+(defun magento-cache-clean--watch-process (&optional root)
+  "Return the live watch process for Magento ROOT, or nil.
+ROOT defaults as in `magento-cache-clean--watch-buffer'."
+  (when-let* ((buf (magento-cache-clean--watch-buffer root))
+              (proc (get-buffer-process buf)))
     (and (process-live-p proc) proc)))
 
 ;; Tramp passes the variables that differ from the global environment
