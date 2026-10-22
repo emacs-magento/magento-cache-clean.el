@@ -352,15 +352,21 @@ Interactively, N is the prefix argument, as for `self-insert-command'."
 
 (defun magento-cache-clean--watch-interrupt ()
   "Interrupt the watcher running in the current buffer, if any.
+Return non-nil if it was interrupted.
 Deleting the process, as `comint-exec' and `kill-buffer' do, only ends
 Tramp's local end of a remote watcher, while interrupting it reaches
 the remote host."
   (when-let* ((proc (get-buffer-process (current-buffer)))
               ((process-live-p proc)))
     ;; An error, such as a lost connection, would keep the buffer from
-    ;; being killed or Emacs from exiting.
-    (with-demoted-errors "Error interrupting watcher: %S"
-      (interrupt-process proc))))
+    ;; being killed, Emacs from exiting or the other watchers from
+    ;; being stopped.
+    (condition-case err
+        (progn (interrupt-process proc) t)
+      (error
+       (message "Error interrupting the watcher in %s: %s"
+                (buffer-name) (error-message-string err))
+       nil))))
 
 (defun magento-cache-clean--interrupt-watchers ()
   "Interrupt all running watchers, as `kill-emacs-hook'.
@@ -529,18 +535,14 @@ else one of the running watchers read in the minibuffer."
 A watcher that can't be interrupted, such as one whose connection was
 lost, doesn't keep the others running."
   (interactive)
-  (let ((buffers (magento-cache-clean--watch-buffers))
-        (failed 0))
+  (let ((buffers (magento-cache-clean--watch-buffers)))
     (unless buffers
       (user-error "No watch process running"))
-    (dolist (buf buffers)
-      (condition-case err
-          (interrupt-process (get-buffer-process buf))
-        (error
-         (setq failed (1+ failed))
-         (message "Error interrupting the watcher in %s: %s"
-                  (buffer-name buf) (error-message-string err)))))
-    (let ((interrupted (- (length buffers) failed)))
+    (let* ((interrupted (seq-count (lambda (buf)
+                                     (with-current-buffer buf
+                                       (magento-cache-clean--watch-interrupt)))
+                                   buffers))
+           (failed (- (length buffers) interrupted)))
       (message "Interrupted %d magento-cache-clean watcher%s%s"
                interrupted (if (= interrupted 1) "" "s")
                (if (> failed 0)
