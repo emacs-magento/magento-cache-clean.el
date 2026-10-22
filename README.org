@@ -117,9 +117,10 @@ one name to always use it.
 Killing a watch buffer, stopping a watcher or exiting Emacs interrupts
 the watcher on the remote host, since ending Tramp's local process
 alone would leave it running.  This waits for the remote host to answer,
-so over a connection that hangs instead of failing, such as SSH without
-=ServerAliveInterval=, exiting Emacs can hang too.  Set it in your SSH
-configuration to make a lost connection fail quickly.
+at most =magento-cache-clean-interrupt-timeout= seconds, so over a
+connection that hangs instead of failing, such as SSH without
+=ServerAliveInterval=, the watcher may be left running.  Set it in your
+SSH configuration to make a lost connection fail quickly.
 
 * Customization
 
@@ -129,6 +130,7 @@ configuration to make a lost connection fail quickly.
 | =magento-cache-clean-directory=           | Magento root (nil = auto-detect)            | =nil=   |
 | =magento-cache-clean-error-regexp-alist=  | Regexps that make one-shot output clickable | =nil=   |
 | =magento-cache-clean-watch-query-on-exit= | Ask before killing a running watcher        | =nil=   |
+| =magento-cache-clean-interrupt-timeout=   | Seconds to wait for a watcher to stop       | =5=     |
 
 ** Executable
 
