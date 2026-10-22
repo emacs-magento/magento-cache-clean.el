@@ -638,6 +638,7 @@ root is configured."
     (should (eq 'magento-cache-clean-watch-restart (key-binding (kbd "C-c C-r"))))
     ;; Not comint's, which would close the watcher's input.
     (should (eq 'undefined (key-binding (kbd "C-d"))))
+    (should (eq 'undefined (key-binding (kbd "C-c C-d"))))
     (should (eq 'find-file (key-binding (kbd "C-x C-f"))))))
 
 (ert-deftest magento-cache-clean-test-watch-ret-sends-only-return ()
