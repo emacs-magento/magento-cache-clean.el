@@ -315,6 +315,11 @@ also gets vendor/bin/cache-clean.js."
                          (magento-cache-clean--directory))))
       (delete-directory temp-dir t))))
 
+(ert-deftest magento-cache-clean-test-directory-custom-missing ()
+  "A configured root that isn't a directory is a user error."
+  (let ((magento-cache-clean-directory "/no/such/magento/root/"))
+    (should-error (magento-cache-clean--directory) :type 'user-error)))
+
 (ert-deftest magento-cache-clean-test-directory-prompt-is-expanded ()
   "A prompted directory is expanded, since the watch process gets no shell."
   (let ((temp-dir (make-temp-file "not-magento" t)))
@@ -451,7 +456,9 @@ also gets vendor/bin/cache-clean.js."
         (setq-local process-environment
                     (cons "FOO=from-caller" process-environment))
         (let ((magento-cache-clean-directory "/ssh:host:/var/www/"))
-          (magento-cache-clean nil)
+          ;; Don't let Tramp connect to check the root.
+          (cl-letf (((symbol-function 'file-directory-p) #'always))
+            (magento-cache-clean nil))
           (should-not local-env))
         (let ((magento-cache-clean-directory temporary-file-directory))
           (magento-cache-clean nil)

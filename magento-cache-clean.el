@@ -120,11 +120,15 @@ defaults, reachable with \\<minibuffer-local-map>\\[next-history-element]."
 (defun magento-cache-clean--root (&optional prompt)
   "Return the configured or detected Magento root.
 The root is detected by looking for app/etc/env.php upward.  When it
-can't be found, prompt for it if PROMPT is non-nil, else return nil."
+can't be found, prompt for it if PROMPT is non-nil, else return nil.
+Signal a `user-error' when the configured root isn't a directory."
   (if-let* ((dir (or magento-cache-clean-directory
                      (locate-dominating-file default-directory
                                              "app/etc/env.php"))))
-      (file-name-as-directory (expand-file-name dir))
+      (let ((dir (file-name-as-directory (expand-file-name dir))))
+        (unless (file-directory-p dir)
+          (user-error "Magento root %s is not a directory" dir))
+        dir)
     (and prompt (magento-cache-clean--read-root))))
 
 (defun magento-cache-clean--menu-root ()
