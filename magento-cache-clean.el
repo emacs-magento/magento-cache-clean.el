@@ -649,8 +649,10 @@ when the configured root isn't a directory."
 Interactively, BUFFER is the watcher of the current Magento root, or
 else one of the running watchers read in the minibuffer."
   (interactive (list (magento-cache-clean--read-watch-buffer)))
-  (setq buffer (or (get-buffer buffer)
-                   (user-error "No buffer named %s" buffer)))
+  (setq buffer (cond ((buffer-live-p (get-buffer buffer)) (get-buffer buffer))
+                     ;; `get-buffer' returns a killed buffer as is.
+                     ((bufferp buffer) (user-error "The buffer was killed"))
+                     (t (user-error "No buffer named %s" buffer))))
   (unless (with-current-buffer buffer
             (derived-mode-p 'magento-cache-clean-watch-mode))
     (user-error "%s is not a magento-cache-clean watch buffer" buffer))
