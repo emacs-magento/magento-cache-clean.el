@@ -457,7 +457,7 @@ also gets vendor/bin/cache-clean.js."
           (progn
             (should (eq (get-buffer-process buf)
                         (magento-cache-clean--watch-process)))
-            (magento-cache-clean-watch-stop)
+            (call-interactively #'magento-cache-clean-watch-stop)
             (magento-cache-clean-test--wait buf)
             (should-not (magento-cache-clean--watch-process)))
         (when (buffer-live-p buf) (kill-buffer buf))))))
@@ -545,7 +545,7 @@ afterwards."
     (let ((default-directory a))
       (cl-letf (((symbol-function 'completing-read)
                  (lambda (&rest _) (error "Unexpected prompt"))))
-        (magento-cache-clean-watch-stop)))
+        (call-interactively #'magento-cache-clean-watch-stop)))
     (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer a))
     (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer a)))
     (should (get-buffer-process (magento-cache-clean-test--watch-buffer b)))))
@@ -559,7 +559,7 @@ afterwards."
                  (lambda (_prompt collection &rest _)
                    (setq offered (mapcar #'car collection))
                    b)))
-        (magento-cache-clean-watch-stop))
+        (call-interactively #'magento-cache-clean-watch-stop))
       (should (member a offered))
       (should (member b offered)))
     (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer b))
@@ -582,7 +582,14 @@ afterwards."
   "Stopping with no watcher running is a user error."
   (let ((default-directory temporary-file-directory))
     (cl-letf (((symbol-function 'magento-cache-clean--watch-buffers) #'ignore))
-      (should-error (magento-cache-clean-watch-stop) :type 'user-error))))
+      (should-error (call-interactively #'magento-cache-clean-watch-stop)
+                    :type 'user-error))))
+
+(ert-deftest magento-cache-clean-test-stop-without-live-process ()
+  "Stopping a buffer without a live watcher is a user error."
+  (with-temp-buffer
+    (should-error (magento-cache-clean-watch-stop (current-buffer))
+                  :type 'user-error)))
 
 (ert-deftest magento-cache-clean-test-stop-all ()
   "Stop all interrupts every running watcher."
