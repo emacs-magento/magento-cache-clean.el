@@ -536,9 +536,8 @@ else one of the running watchers read in the minibuffer."
   (interactive (list (magento-cache-clean--read-watch-buffer)))
   (setq buffer (or (get-buffer buffer)
                    (user-error "No buffer named %s" buffer)))
-  (unless (provided-mode-derived-p
-           (buffer-local-value 'major-mode buffer)
-           'magento-cache-clean-watch-mode)
+  (unless (with-current-buffer buffer
+            (derived-mode-p 'magento-cache-clean-watch-mode))
     (user-error "%s is not a magento-cache-clean watch buffer" buffer))
   (let ((proc (get-buffer-process buffer)))
     (unless (process-live-p proc)
