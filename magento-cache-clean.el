@@ -196,15 +196,17 @@ a script that needs it is found."
 (defun magento-cache-clean--executable (root)
   "Return the name of the cache-clean executable for Magento ROOT.
 See `magento-cache-clean-executable'.  Signal a `user-error' when
-auto-detection finds none."
-  (let* ((exe magento-cache-clean-executable)
-         (name (cond ((stringp exe) exe)
-                     ((and (not (eq exe 'auto)) (functionp exe))
-                      (funcall exe root)))))
-    (cond ((null name) (magento-cache-clean--auto-detect root))
-          ((stringp name) name)
-          (t (error "`magento-cache-clean-executable' returned %S, \
-not a string or nil" name)))))
+auto-detection finds none or the option has an invalid value."
+  (pcase magento-cache-clean-executable
+    ('auto (magento-cache-clean--auto-detect root))
+    ((and (pred stringp) name) name)
+    ((and (pred functionp) fn)
+     (pcase (funcall fn root)
+       ('nil (magento-cache-clean--auto-detect root))
+       ((and (pred stringp) name) name)
+       (other (error "`magento-cache-clean-executable' returned %S, \
+not a string or nil" other))))
+    (other (user-error "Invalid `magento-cache-clean-executable': %S" other))))
 
 (defun magento-cache-clean--program (name root)
   "Return the program to run for executable NAME and Magento ROOT.

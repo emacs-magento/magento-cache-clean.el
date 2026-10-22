@@ -270,6 +270,12 @@ also gets vendor/bin/cache-clean.js."
       (should (equal (list :root root :executable "cache-clean (auto)")
                      (magento-cache-clean--transient-scope root))))))
 
+(ert-deftest magento-cache-clean-test-executable-invalid-value ()
+  "A value that is neither auto, a string nor a function is a user error."
+  (let ((magento-cache-clean-executable 'no-such-function))
+    (should-error (magento-cache-clean--executable "/a/src/")
+                  :type 'user-error)))
+
 ;;; Directory detection
 
 (ert-deftest magento-cache-clean-test-detect-directory-found ()
