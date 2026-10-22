@@ -474,8 +474,10 @@ just shows it.  Return the watch buffer."
 (defun magento-cache-clean--read-watch-buffer ()
   "Return the watch buffer a stop command acts on.
 This is the watcher of the current Magento root when there is one.
-Otherwise, read one of the running watchers in the minibuffer."
-  (if-let* ((proc (magento-cache-clean--watch-process)))
+Otherwise, read one of the running watchers in the minibuffer, as
+when the configured root isn't a directory."
+  (if-let* ((proc (ignore-error user-error
+                    (magento-cache-clean--watch-process))))
       (process-buffer proc)
     (let ((watchers (magento-cache-clean--watch-buffers)))
       (unless watchers
