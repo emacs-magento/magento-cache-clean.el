@@ -620,7 +620,8 @@ Return the match's end like `re-search-forward', or nil."
                 ;; `syntax-ppss' moves point.
                 (save-match-data
                   (save-excursion
-                    (nth 8 (syntax-ppss (match-beginning 0)))))))
+                    (ppss-comment-or-string-start
+                     (syntax-ppss (match-beginning 0)))))))
     found))
 
 (defun magento-cache-clean--env-cache-types (root)
