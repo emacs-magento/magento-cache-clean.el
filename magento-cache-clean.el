@@ -531,11 +531,18 @@ Return the output buffer."
          (start (lambda ()
                   (let ((default-directory root))
                     (compilation-start command #'magento-cache-clean-compilation-mode
-                                       (lambda (_) name))))))
-    ;; `compilation-start' inherits the current buffer's environment.
-    (if (magento-cache-clean--same-host-p root)
-        (funcall start)
-      (with-temp-buffer (funcall start)))))
+                                       (lambda (_) name)))))
+         (last-error-buffer next-error-last-buffer)
+         ;; `compilation-start' inherits the current buffer's environment.
+         (buf (if (magento-cache-clean--same-host-p root)
+                  (funcall start)
+                (with-temp-buffer (funcall start)))))
+    ;; `compilation-start' makes its buffer the one `next-error' visits.
+    ;; Without error regexps it has nothing to visit, and would take
+    ;; `next-error' away from grep or compilation results.
+    (unless (buffer-local-value 'compilation-error-regexp-alist buf)
+      (setq next-error-last-buffer last-error-buffer))
+    buf))
 
 ;;;###autoload
 (defun magento-cache-clean-watch (&optional args)
