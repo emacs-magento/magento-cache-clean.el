@@ -495,6 +495,10 @@ ENV and PATH are the local `process-environment' and variable
   ;; Also on a restart, to forget the local values of the previous
   ;; start, such as those .dir-locals.el no longer sets.
   (magento-cache-clean-watch-mode)
+  ;; Right away, so that the buffer is found by its root even when
+  ;; reading .dir-locals.el below is quit.
+  (setq magento-cache-clean--watch-root root
+        magento-cache-clean--watch-args args)
   ;; It survives the mode change, and would bring them back.
   (setq file-local-variables-alist nil)
   ;; So that a restart or the menu opened from here use the root's
@@ -505,9 +509,7 @@ ENV and PATH are the local `process-environment' and variable
     (kill-local-variable 'process-environment))
   (if path
       (setq-local exec-path path)
-    (kill-local-variable 'exec-path))
-  (setq magento-cache-clean--watch-root root
-        magento-cache-clean--watch-args args))
+    (kill-local-variable 'exec-path)))
 
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
@@ -532,13 +534,14 @@ changes.  When none is found then, the running watcher is kept."
          (buf (or old-buf
                   (generate-new-buffer (magento-cache-clean--buffer-name root t)))))
     (with-current-buffer buf
-      (magento-cache-clean--watch-reset root args env path)
-      (goto-char (point-max))
       ;; A configured executable isn't checked, so it may not be found,
-      ;; and connecting to a remote root may be quit.  Don't leave a new
-      ;; buffer without a process, and tell why in an existing one.
+      ;; and connecting to a remote root or the question whether to
+      ;; apply .dir-locals.el may be quit.  Don't leave a new buffer
+      ;; without a process, and tell why in an existing one.
       (condition-case err
           (progn
+            (magento-cache-clean--watch-reset root args env path)
+            (goto-char (point-max))
             (unless command
               (setq command (magento-cache-clean--command
                              root (cons "--watch" args))))
@@ -556,6 +559,7 @@ changes.  When none is found then, the running watcher is kept."
         ((error quit)
          (if old-buf
              (let ((inhibit-read-only t))
+               (goto-char (point-max))
                (insert (error-message-string err) "\n"))
            (kill-buffer buf))
          (signal (car err) (cdr err))))
