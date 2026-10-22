@@ -371,6 +371,26 @@ The menu opened from it must find the same executable as from a file."
         (magento-cache-clean-test--wait buf)
         (kill-buffer buf)))))
 
+(ert-deftest magento-cache-clean-test-one-shot-keeps-next-error-buffer ()
+  "A one-shot clean without error regexps leaves `next-error' alone.
+With error regexps, its buffer becomes the one `next-error' visits."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable
+           (magento-cache-clean-test--fake-executable root "echo done"))
+          (default-directory root)
+          (magento-cache-clean-directory nil)
+          (grep-buf (generate-new-buffer " *grep results*")))
+      (unwind-protect
+          (dolist (regexps '(nil (("^ERR \\(.+\\)$" 1))))
+            (let* ((next-error-last-buffer grep-buf)
+                   (magento-cache-clean-error-regexp-alist regexps)
+                   (buf (magento-cache-clean)))
+              (unwind-protect
+                  (should (eq (if regexps buf grep-buf) next-error-last-buffer))
+                (magento-cache-clean-test--wait buf)
+                (kill-buffer buf))))
+        (kill-buffer grep-buf)))))
+
 (ert-deftest magento-cache-clean-test-watch-restart-uses-dir-locals ()
   "Restarting from the watch buffer keeps the root's executable."
   (magento-cache-clean-test--with-root root
@@ -852,7 +872,8 @@ either, so later changes to the global values reach restarts."
                (lambda (&rest _) "*magento-cache-clean-test*"))
               ((symbol-function 'compilation-start)
                (lambda (&rest _)
-                 (setq local-env (local-variable-p 'process-environment)))))
+                 (setq local-env (local-variable-p 'process-environment))
+                 (get-buffer-create " *magento-cache-clean-test*"))))
       (with-temp-buffer
         (setq default-directory temporary-file-directory)
         (setq-local process-environment
@@ -873,7 +894,8 @@ either, so later changes to the global values reach restarts."
         (quote-argument (symbol-function 'shell-quote-argument)))
     (cl-letf (((symbol-function 'magento-cache-clean--buffer-name)
                (lambda (&rest _) "*magento-cache-clean-test*"))
-              ((symbol-function 'compilation-start) #'ignore)
+              ((symbol-function 'compilation-start)
+               (lambda (&rest _) (get-buffer-create " *magento-cache-clean-test*")))
               ((symbol-function 'shell-quote-argument)
                (lambda (arg &optional posix)
                  (push posix posix-args)
