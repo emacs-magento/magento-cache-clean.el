@@ -1144,6 +1144,21 @@ Deleting a remote process leaves the watcher running on its host."
             (should (process-live-p proc)))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-watch-mode-hook-in-root ()
+  "The watch mode's hooks run in the root, not the caller's directory."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (hook-dir nil)
+           (magento-cache-clean-watch-mode-hook
+            (list (lambda () (setq hook-dir default-directory))))
+           (default-directory temporary-file-directory)
+           (buf (magento-cache-clean--watch-start root nil)))
+      (unwind-protect
+          (should (equal root hook-dir))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-not-found-leaves-no-buffer ()
   "A watcher that can't start because nothing is found leaves no buffer."
   (magento-cache-clean-test--with-root root

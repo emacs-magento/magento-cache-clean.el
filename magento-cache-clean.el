@@ -465,10 +465,11 @@ restarted."
          (buf (or old-buf
                   (generate-new-buffer (magento-cache-clean--buffer-name root t)))))
     (with-current-buffer buf
+      ;; Before the mode's hooks run, which may look things up in it.
+      ;; Unlike most variables, a mode change doesn't reset it.
+      (setq default-directory root)
       (unless (derived-mode-p 'magento-cache-clean-watch-mode)
         (magento-cache-clean-watch-mode))
-      ;; Set after the mode change, which kills local variables.
-      (setq default-directory root)
       ;; Forget the values applied by a previous start, which
       ;; .dir-locals.el may no longer set.
       (dolist (elt dir-local-variables-alist)
