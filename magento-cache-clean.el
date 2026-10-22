@@ -43,7 +43,6 @@
 ;;; Code:
 
 (require 'ansi-color)
-(eval-when-compile (require 'cl-lib))
 (require 'comint)
 (require 'compile)
 (require 'transient)
@@ -184,16 +183,19 @@ ROOT it is looked up on the remote host."
   "Return the name of the first cache-clean executable found for ROOT.
 Signal a `user-error' when there is none.  Node is only looked up when
 a script that needs it is found."
-  (let ((node 'unchecked)
-        (missing-node nil))
-    (or (cl-loop for (name . needs-node) in magento-cache-clean--candidates
-                 when (magento-cache-clean--found-p name root)
-                 if (or (not needs-node)
-                        (if (eq node 'unchecked)
-                            (setq node (magento-cache-clean--found-p "node" root))
-                          node))
-                 return name
-                 else do (push name missing-node))
+  (let* ((node 'unchecked)
+         (node-p (lambda ()
+                   (when (eq node 'unchecked)
+                     (setq node (magento-cache-clean--found-p "node" root)))
+                   node))
+         (missing-node nil))
+    (or (seq-some (pcase-lambda (`(,name . ,needs-node))
+                    (when (magento-cache-clean--found-p name root)
+                      (if (or (not needs-node) (funcall node-p))
+                          name
+                        (push name missing-node)
+                        nil)))
+                  magento-cache-clean--candidates)
         (user-error "No cache-clean found (tried %s)%s"
                     (mapconcat #'car magento-cache-clean--candidates ", ")
                     (if missing-node
