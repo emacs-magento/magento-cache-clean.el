@@ -256,8 +256,8 @@ When WATCH is non-nil, return the watch buffer name."
 
 (defun magento-cache-clean--watch-buffers ()
   "Return the watch buffers with a running watcher."
-  (seq-filter (lambda (buf) (process-live-p (get-buffer-process buf)))
-              (match-buffers '(derived-mode . magento-cache-clean-watch-mode))))
+  (match-buffers `(and (derived-mode . magento-cache-clean-watch-mode)
+                       ,(lambda (buf) (process-live-p (get-buffer-process buf))))))
 
 (defun magento-cache-clean--watch-process (&optional root)
   "Return the live watch process for Magento ROOT, or nil.
