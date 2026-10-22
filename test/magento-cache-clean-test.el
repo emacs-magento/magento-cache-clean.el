@@ -1112,6 +1112,18 @@ afterwards."
     (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer b)))
     (should (get-buffer-process (magento-cache-clean-test--watch-buffer a)))))
 
+(ert-deftest magento-cache-clean-test-stop-with-bad-root-reads-watcher ()
+  "A configured root that isn't a directory still lets stop read a watcher."
+  (magento-cache-clean-test--with-watchers (a)
+    (let ((default-directory temporary-file-directory)
+          (magento-cache-clean-directory "/no/such/magento/"))
+      (cl-letf (((symbol-function 'read-buffer)
+                 (lambda (&rest _)
+                   (buffer-name (magento-cache-clean-test--watch-buffer a)))))
+        (call-interactively #'magento-cache-clean-watch-stop)))
+    (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer a))
+    (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer a)))))
+
 (ert-deftest magento-cache-clean-test-stop-from-menu-uses-menu-root ()
   "From the menu, stop acts on the menu's root, even in another watch buffer."
   (magento-cache-clean-test--with-watchers (a b)
