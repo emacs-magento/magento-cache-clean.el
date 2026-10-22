@@ -317,7 +317,7 @@ empty.  Add entries to make parts of the output clickable."
   "Send the key just pressed to the watch process, N times.
 cache-clean reads stdin in raw mode and handles the key itself.
 Interactively, N is the prefix argument, as for `self-insert-command'."
-  (interactive "p")
+  (interactive "p" magento-cache-clean-watch-mode)
   (setq n (or n 1))
   (when (< n 0)
     (user-error "Negative repetition argument %d" n))
