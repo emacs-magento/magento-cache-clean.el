@@ -337,17 +337,18 @@ Tramp's local end of a remote watcher, while interrupting it reaches
 the remote host."
   (when-let* ((proc (get-buffer-process (current-buffer)))
               ((process-live-p proc)))
-    (interrupt-process proc)))
+    ;; An error, such as a lost connection, would keep the buffer from
+    ;; being killed or Emacs from exiting.
+    (with-demoted-errors "Error interrupting watcher: %S"
+      (interrupt-process proc))))
 
 (defun magento-cache-clean--interrupt-watchers ()
   "Interrupt all running watchers, as `kill-emacs-hook'.
 Emacs only deletes processes when exiting; see
 `magento-cache-clean--watch-interrupt'."
   (dolist (buf (magento-cache-clean--watch-buffers))
-    ;; An error would keep Emacs from exiting.
-    (with-demoted-errors "Error interrupting watcher: %S"
-      (with-current-buffer buf
-        (magento-cache-clean--watch-interrupt)))))
+    (with-current-buffer buf
+      (magento-cache-clean--watch-interrupt))))
 
 (defun magento-cache-clean--watch-revert (_ignore-auto _noconfirm)
   "Restart the watcher, as `revert-buffer-function' of watch buffers."
