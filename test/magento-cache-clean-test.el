@@ -988,6 +988,35 @@ Deleting a remote process leaves the watcher running on its host."
         (should-error (magento-cache-clean-watch) :type 'user-error)
         (should-not (get-buffer (magento-cache-clean--buffer-name root t)))))))
 
+(ert-deftest magento-cache-clean-test-watch-missing-executable-leaves-no-buffer ()
+  "A configured executable that doesn't exist leaves no buffer."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable "magento-cache-clean-test-missing")
+          (default-directory root)
+          (magento-cache-clean-directory nil))
+      (should-error (magento-cache-clean-watch) :type 'file-missing)
+      (should-not (magento-cache-clean--root-watch-buffer root)))))
+
+(ert-deftest magento-cache-clean-test-watch-missing-executable-on-restart ()
+  "A restart whose executable is gone says why in the watch buffer."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch)))
+      (unwind-protect
+          (cl-letf ((magento-cache-clean-executable
+                     "magento-cache-clean-test-missing")
+                    ((symbol-function 'yes-or-no-p) (lambda (_) t)))
+            (should-error (magento-cache-clean-watch) :type 'file-missing)
+            (should (eq buf (magento-cache-clean--root-watch-buffer root)))
+            (with-current-buffer buf
+              (should-not (process-live-p (get-buffer-process buf)))
+              (should (string-match-p "magento-cache-clean-test-missing\n\\'"
+                                      (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-send-key ()
   "A forwarded key reaches the process unchanged."
   (magento-cache-clean-test--with-root root
