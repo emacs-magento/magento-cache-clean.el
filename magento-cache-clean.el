@@ -277,18 +277,23 @@ cache-clean reads stdin in raw mode and handles the key itself."
 (defvar-keymap magento-cache-clean-watch-mode-map
   :doc "Keymap for `magento-cache-clean-watch-mode'."
   :parent comint-mode-map
-  "<remap> <self-insert-command>" #'magento-cache-clean-watch-send-key)
+  "<remap> <self-insert-command>" #'magento-cache-clean-watch-send-key
+  "C-c C-r" #'magento-cache-clean-watch-restart)
+
+(defun magento-cache-clean--watch-revert (_ignore-auto _noconfirm)
+  "Restart the watcher, as `revert-buffer-function' of watch buffers."
+  (magento-cache-clean-watch-restart))
 
 (define-derived-mode magento-cache-clean-watch-mode comint-mode
   "MagentoCacheClean:Watch"
   "Major mode for magento-cache-clean watch buffers.
 Printable keys are sent straight to the cache-clean process, which
 handles them as hotkeys; see the cache-clean README for the list.
-\\[revert-buffer] restarts the watcher with the same arguments.
+\\[comint-interrupt-subjob] stops the watcher, and \\[magento-cache-clean-watch-restart] or \
+\\[revert-buffer] restarts it with the same arguments.
 
 \\{magento-cache-clean-watch-mode-map}"
-  (setq-local revert-buffer-function
-              (lambda (&rest _) (magento-cache-clean-watch-restart))))
+  (setq-local revert-buffer-function #'magento-cache-clean--watch-revert))
 
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.

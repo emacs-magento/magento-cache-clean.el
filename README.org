@@ -83,7 +83,8 @@ In the watch buffer, every printable key is sent straight to cache-clean,
 which handles it as a hotkey. cache-clean prints the list of hotkeys when
 the watcher starts; see the [[https://github.com/mage-os/magento-cache-clean#hotkeys][upstream README]] for details.
 
-=C-c C-c= stops the watcher.
+=C-c C-c= stops the watcher and =C-c C-r= (or =M-x revert-buffer=) restarts
+it with the same arguments.
 
 ** Window placement
 

@@ -352,6 +352,7 @@ also gets vendor/bin/cache-clean.js."
     (dolist (key '("c" "G" "?" "1"))
       (should (eq 'magento-cache-clean-watch-send-key (key-binding (kbd key)))))
     (should (eq 'comint-interrupt-subjob (key-binding (kbd "C-c C-c"))))
+    (should (eq 'magento-cache-clean-watch-restart (key-binding (kbd "C-c C-r"))))
     (should (eq 'find-file (key-binding (kbd "C-x C-f"))))))
 
 ;;; Processes
