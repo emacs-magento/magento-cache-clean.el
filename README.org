@@ -104,6 +104,15 @@ Output buffers are named after the Magento root, so they can be placed with
                (window-height . 0.25)))
 #+end_src
 
+** Remote watchers
+
+Killing a watch buffer, stopping a watcher or exiting Emacs interrupts
+the watcher on the remote host, since ending Tramp's local process
+alone would leave it running.  This waits for the remote host to answer,
+so over a connection that hangs instead of failing, such as SSH without
+=ServerAliveInterval=, exiting Emacs can hang too.  Set it in your SSH
+configuration to make a lost connection fail quickly.
+
 * Customization
 
 | Variable                                  | Description                                 | Default |
