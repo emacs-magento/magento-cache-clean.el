@@ -194,20 +194,27 @@ a script that needs it is found."
                                 (string-join (nreverse missing-node) " and "))
                       "")))))
 
+(defun magento-cache-clean--configured-executable (root)
+  "Return the cache-clean executable configured for Magento ROOT.
+Return nil when it is to be auto-detected.  See
+`magento-cache-clean-executable'.  Signal an error when the option
+has an invalid value."
+  (pcase magento-cache-clean-executable
+    ('auto nil)
+    ((and (pred stringp) name) name)
+    ((and (pred functionp) fn)
+     (pcase (funcall fn root)
+       ((and (or 'nil (pred stringp)) name) name)
+       (other (error "`magento-cache-clean-executable' returned %S, \
+not a string or nil" other))))
+    (other (user-error "Invalid `magento-cache-clean-executable': %S" other))))
+
 (defun magento-cache-clean--executable (root)
   "Return the name of the cache-clean executable for Magento ROOT.
 See `magento-cache-clean-executable'.  Signal a `user-error' when
 auto-detection finds none or the option has an invalid value."
-  (pcase magento-cache-clean-executable
-    ('auto (magento-cache-clean--auto-detect root))
-    ((and (pred stringp) name) name)
-    ((and (pred functionp) fn)
-     (pcase (funcall fn root)
-       ('nil (magento-cache-clean--auto-detect root))
-       ((and (pred stringp) name) name)
-       (other (error "`magento-cache-clean-executable' returned %S, \
-not a string or nil" other))))
-    (other (user-error "Invalid `magento-cache-clean-executable': %S" other))))
+  (or (magento-cache-clean--configured-executable root)
+      (magento-cache-clean--auto-detect root)))
 
 (defun magento-cache-clean--program (name root)
   "Return the program to run for executable NAME and Magento ROOT.
@@ -479,16 +486,21 @@ types.  Other names can still be entered, since cache-clean takes any."
   "Return the scope of `magento-cache-clean-transient' for Magento ROOT.
 The executable is looked up once, since doing it on every menu refresh
 and command is slow on a remote ROOT.  The scope has the executable's
-name, or the message of the error looking it up."
+name and whether it was auto-detected, or the message of the error
+looking it up.  It is computed in the buffer the menu is opened from,
+since that is where directory local values apply."
   (condition-case err
-      (list :root root :executable (magento-cache-clean--executable root))
+      (let ((name (magento-cache-clean--configured-executable root)))
+        (list :root root
+              :executable (or name (magento-cache-clean--auto-detect root))
+              :auto (not name)))
     (error (list :root root :error (error-message-string err)))))
 
 (defun magento-cache-clean--transient-executable (scope)
   "Describe the cache-clean executable of the menu SCOPE."
   (or (plist-get scope :error)
       (concat (plist-get scope :executable)
-              (and (eq magento-cache-clean-executable 'auto) " (auto)"))))
+              (and (plist-get scope :auto) " (auto)"))))
 
 (defun magento-cache-clean--transient-description ()
   "Return the heading of `magento-cache-clean-transient'."

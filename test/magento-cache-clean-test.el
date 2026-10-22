@@ -270,8 +270,31 @@ also gets vendor/bin/cache-clean.js."
   "The menu scope has the root and the executable, looked up once."
   (magento-cache-clean-test--with-root root
     (magento-cache-clean-test--with-programs root '("cache-clean") nil
-      (should (equal (list :root root :executable "cache-clean")
+      (should (equal (list :root root :executable "cache-clean" :auto t)
                      (magento-cache-clean--transient-scope root))))))
+
+(ert-deftest magento-cache-clean-test-transient-executable-auto-from-function ()
+  "A function returning nil auto-detects, which the menu shows."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean") nil
+      (let ((magento-cache-clean-executable #'ignore))
+        (should (equal "cache-clean (auto)"
+                       (magento-cache-clean--transient-executable
+                        (magento-cache-clean--transient-scope root))))))))
+
+(ert-deftest magento-cache-clean-test-transient-executable-dir-local ()
+  "The menu heading follows the opening buffer's local value.
+Transient draws the heading in another buffer, where only the global
+value is visible."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean") nil
+      (let ((scope (with-temp-buffer
+                     (setq-local magento-cache-clean-executable "cache-clean")
+                     (magento-cache-clean--transient-scope root))))
+        (with-temp-buffer
+          (should (eq 'auto magento-cache-clean-executable))
+          (should (equal "cache-clean"
+                         (magento-cache-clean--transient-executable scope))))))))
 
 (ert-deftest magento-cache-clean-test-command-reuses-menu-executable ()
   "From the menu, the command uses the executable the menu found."
