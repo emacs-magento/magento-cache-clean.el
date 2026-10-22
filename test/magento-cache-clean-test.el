@@ -1099,7 +1099,8 @@ afterwards."
 ;;; Error regexps
 
 (ert-deftest magento-cache-clean-test-error-regexps-customizable ()
-  "One-shot buffers take their error regexps from the package variable."
+  "One-shot buffers take their error regexps from the user option."
+  (should (custom-variable-p 'magento-cache-clean-error-regexp-alist))
   (let ((magento-cache-clean-error-regexp-alist '(("^ERR \\(.+\\)$" 1))))
     (with-temp-buffer
       (magento-cache-clean-mode)
