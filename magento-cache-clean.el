@@ -292,6 +292,12 @@ found for ROOT is reused, as looking it up again is slow when remote."
     `(,(magento-cache-clean--program name root)
       "-d" ,(file-local-name root) ,@args)))
 
+(defun magento-cache-clean--shell-command (command root)
+  "Return the COMMAND list as a shell command line for Magento ROOT."
+  ;; A remote shell is POSIX, whatever the local system is.
+  (let ((posix (file-remote-p root)))
+    (mapconcat (lambda (arg) (shell-quote-argument arg posix)) command " ")))
+
 ;;; Buffers
 
 (defun magento-cache-clean--buffer-name (root &optional watch)
@@ -477,7 +483,9 @@ restarted."
       (magento-cache-clean--watch-interrupt)
       (goto-char (point-max))
       (let ((inhibit-read-only t))
-        (insert (propertize (concat "$ " (combine-and-quote-strings command) "\n")
+        (insert (propertize (concat "$ " (magento-cache-clean--shell-command
+                                          command root)
+                                    "\n")
                             'font-lock-face 'comint-highlight-input)))
       ;; A configured executable isn't checked, so it may not be found.
       ;; Don't leave a new buffer without a process, and tell why in one
@@ -507,11 +515,8 @@ Interactively, ARGS come from `magento-cache-clean-menu'."
   (interactive (list (magento-cache-clean--arguments)))
   (let* ((root (magento-cache-clean--directory))
          (name (magento-cache-clean--buffer-name root))
-         ;; A remote shell is POSIX, whatever the local system is.
-         (posix (file-remote-p root))
-         (command (mapconcat (lambda (arg) (shell-quote-argument arg posix))
-                             (magento-cache-clean--command root args)
-                             " "))
+         (command (magento-cache-clean--shell-command
+                   (magento-cache-clean--command root args) root))
          (start (lambda ()
                   (let ((default-directory root))
                     (compilation-start command #'magento-cache-clean-compilation-mode

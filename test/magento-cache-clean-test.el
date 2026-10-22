@@ -904,6 +904,25 @@ either, so later changes to the global values reach restarts."
                               magento-cache-clean-executable root)))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-watch-shows-shell-quoted-command ()
+  "The watch buffer's command line can be pasted into a shell."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch '("$HOME's"))))
+      (unwind-protect
+          (with-current-buffer buf
+            (goto-char (point-min))
+            (should (looking-at-p
+                     (regexp-quote
+                      (format "$ %s -d %s --watch %s\n"
+                              (shell-quote-argument magento-cache-clean-executable)
+                              (shell-quote-argument root)
+                              (shell-quote-argument "$HOME's"))))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-query-on-exit ()
   "Exiting Emacs asks about watchers only when the option says so."
   (magento-cache-clean-test--with-root root
