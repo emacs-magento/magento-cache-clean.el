@@ -333,6 +333,16 @@ the remote host."
               ((process-live-p proc)))
     (interrupt-process proc)))
 
+(defun magento-cache-clean--interrupt-watchers ()
+  "Interrupt all running watchers, as `kill-emacs-hook'.
+Emacs only deletes processes when exiting; see
+`magento-cache-clean--watch-interrupt'."
+  (dolist (buf (magento-cache-clean--watch-buffers))
+    ;; An error would keep Emacs from exiting.
+    (with-demoted-errors "Error interrupting watcher: %S"
+      (with-current-buffer buf
+        (magento-cache-clean--watch-interrupt)))))
+
 (defun magento-cache-clean--watch-revert (_ignore-auto _noconfirm)
   "Restart the watcher, as `revert-buffer-function' of watch buffers."
   (magento-cache-clean-watch-restart))
@@ -386,7 +396,8 @@ restarted."
                           'font-lock-face 'comint-highlight-input))
       (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
       (set-process-query-on-exit-flag (get-buffer-process buf)
-                                      magento-cache-clean-watch-query-on-exit))
+                                      magento-cache-clean-watch-query-on-exit)
+      (add-hook 'kill-emacs-hook #'magento-cache-clean--interrupt-watchers))
     buf))
 
 ;;; Commands

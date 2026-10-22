@@ -800,6 +800,31 @@ Deleting a remote process leaves the watcher running on its host."
           (kill-buffer buf)))
       (should (equal (list proc) interrupted)))))
 
+(ert-deftest magento-cache-clean-test-kill-emacs-interrupts-watchers ()
+  "Exiting Emacs interrupts running watchers, despite errors."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "trap '' INT; exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (kill-emacs-hook nil)
+           (buf (magento-cache-clean-watch))
+           (proc (get-buffer-process buf))
+           (interrupted nil))
+      (unwind-protect
+          (progn
+            (should (memq #'magento-cache-clean--interrupt-watchers
+                          kill-emacs-hook))
+            (magento-cache-clean-test--recording-interrupts interrupted
+              (run-hooks 'kill-emacs-hook))
+            (should (equal (list proc) interrupted))
+            (cl-letf (((symbol-function 'interrupt-process)
+                       (lambda (&rest _) (error "Connection lost"))))
+              (let ((inhibit-message t))
+                (run-hooks 'kill-emacs-hook))))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-declined-restart-keeps-process ()
   "Declining the restart prompt keeps and shows the running watcher."
   (magento-cache-clean-test--with-root root
