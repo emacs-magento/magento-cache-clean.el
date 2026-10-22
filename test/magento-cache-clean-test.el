@@ -415,10 +415,31 @@ value is visible."
         (let ((default-directory (file-name-as-directory temp-dir))
               (magento-cache-clean-directory nil))
           (cl-letf (((symbol-function 'read-directory-name)
-                     (lambda (&rest _) "~/magento")))
+                     (lambda (&rest _) "~/magento"))
+                    ((symbol-function 'yes-or-no-p) #'always))
             (should (equal (file-name-as-directory (expand-file-name "~/magento"))
                            (magento-cache-clean--directory)))))
       (delete-directory temp-dir t))))
+
+(ert-deftest magento-cache-clean-test-read-root-confirms-non-magento ()
+  "A prompted directory without env.php is only used after confirmation."
+  (let ((dir (file-name-as-directory (make-temp-file "not-magento" t)))
+        (asked nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'read-directory-name)
+                   (lambda (&rest _) dir)))
+          (cl-letf (((symbol-function 'yes-or-no-p)
+                     (lambda (&rest _) (setq asked t) nil)))
+            (should-error (magento-cache-clean--read-root) :type 'user-error))
+          (should asked)
+          (cl-letf (((symbol-function 'yes-or-no-p) #'always))
+            (should (equal dir (magento-cache-clean--read-root)))))
+      (delete-directory dir t)))
+  (magento-cache-clean-test--with-root root
+    (cl-letf (((symbol-function 'read-directory-name) (lambda (&rest _) root))
+              ((symbol-function 'yes-or-no-p)
+               (lambda (&rest _) (error "Unexpected prompt"))))
+      (should (equal root (magento-cache-clean--read-root))))))
 
 ;;; Buffers
 

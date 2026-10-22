@@ -110,13 +110,20 @@ absolute names are safe as directory local values."
 (defun magento-cache-clean--read-root ()
   "Read a Magento root directory in the minibuffer.
 The roots that already have a cache-clean buffer are offered as
-defaults, reachable with \\<minibuffer-local-map>\\[next-history-element]."
-  (file-name-as-directory
-   (expand-file-name
-    (read-directory-name "Magento root directory: " nil
-                         (cons default-directory
-                               (magento-cache-clean--known-roots))
-                         t))))
+defaults, reachable with \\<minibuffer-local-map>\\[next-history-element].
+Ask for confirmation when the directory has no app/etc/env.php, and
+signal a `user-error' when it isn't given."
+  (let ((dir (file-name-as-directory
+              (expand-file-name
+               (read-directory-name "Magento root directory: " nil
+                                    (cons default-directory
+                                          (magento-cache-clean--known-roots))
+                                    t)))))
+    (unless (or (file-exists-p (expand-file-name "app/etc/env.php" dir))
+                (yes-or-no-p (format "%s has no app/etc/env.php.  Use it anyway? "
+                                     (abbreviate-file-name dir))))
+      (user-error "Not a Magento root: %s" (abbreviate-file-name dir)))
+    dir))
 
 (defun magento-cache-clean--root (&optional prompt)
   "Return the configured or detected Magento root.
