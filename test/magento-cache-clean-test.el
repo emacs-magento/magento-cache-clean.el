@@ -370,6 +370,12 @@ also gets vendor/bin/cache-clean.js."
           (call-interactively (key-binding (kbd "RET")))))
       (should (equal "\r" sent)))))
 
+(ert-deftest magento-cache-clean-test-watch-truncates-buffer ()
+  "Watch buffers are truncated, as a watcher can run for days."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (should (memq #'comint-truncate-buffer comint-output-filter-functions))))
+
 ;;; Processes
 
 (ert-deftest magento-cache-clean-test-one-shot-runs-with-caller-env ()

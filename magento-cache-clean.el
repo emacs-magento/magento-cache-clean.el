@@ -293,9 +293,11 @@ Printable keys are sent straight to the cache-clean process, which
 handles them as hotkeys; see the cache-clean README for the list.
 \\[comint-interrupt-subjob] stops the watcher, and \\[magento-cache-clean-watch-restart] or \
 \\[revert-buffer] restarts it with the same arguments.
+The buffer is truncated to `comint-buffer-maximum-size' lines.
 
 \\{magento-cache-clean-watch-mode-map}"
-  (setq-local revert-buffer-function #'magento-cache-clean--watch-revert))
+  (setq-local revert-buffer-function #'magento-cache-clean--watch-revert)
+  (add-hook 'comint-output-filter-functions #'comint-truncate-buffer nil t))
 
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
