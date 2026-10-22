@@ -538,6 +538,11 @@ The menu opened from it must find the same executable as from a file."
           (magento-cache-clean-watch-send-key))
         (should (equal "c" sent))))))
 
+(ert-deftest magento-cache-clean-test-watch-send-key-only-in-watch-mode ()
+  "M-x offers the key forwarding command only in watch buffers."
+  (should (equal '(magento-cache-clean-watch-mode)
+                 (command-modes 'magento-cache-clean-watch-send-key))))
+
 (ert-deftest magento-cache-clean-test-watch-send-key-non-positive ()
   "A zero prefix argument sends nothing and a negative one is refused."
   (with-temp-buffer
