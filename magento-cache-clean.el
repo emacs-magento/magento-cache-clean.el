@@ -332,6 +332,9 @@ ROOT defaults as in `magento-cache-clean--watch-buffer'."
   ;; `compilation-start' sets the root as `default-directory' first.
   ;; The root's options then apply when the menu is opened from here.
   (hack-dir-local-variables-non-file-buffer)
+  ;; The macro set this from the option before the root's value applied.
+  (setq-local compilation-error-regexp-alist
+              magento-cache-clean-error-regexp-alist)
   (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter nil t))
 
 (defvar-local magento-cache-clean--watch-args nil

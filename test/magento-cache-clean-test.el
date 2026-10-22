@@ -336,6 +336,25 @@ The menu opened from it must find the same executable as from a file."
         (magento-cache-clean-test--wait buf)
         (kill-buffer buf)))))
 
+(ert-deftest magento-cache-clean-test-one-shot-dir-local-error-regexps ()
+  "The one-shot buffer uses the root's error regexps."
+  (magento-cache-clean-test--with-root root
+    (write-region (format "%S\n" '((nil . ((magento-cache-clean-error-regexp-alist
+                                             . (("^ERR \\(.+\\)$" 1)))))))
+                  nil (expand-file-name ".dir-locals.el" root))
+    (let* ((enable-local-variables :all)
+           (magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "echo done"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean)))
+      (unwind-protect
+          (with-current-buffer buf
+            (should (equal '(("^ERR \\(.+\\)$" 1))
+                           compilation-error-regexp-alist)))
+        (magento-cache-clean-test--wait buf)
+        (kill-buffer buf)))))
+
 (ert-deftest magento-cache-clean-test-watch-restart-uses-dir-locals ()
   "Restarting from the watch buffer keeps the root's executable."
   (magento-cache-clean-test--with-root root
