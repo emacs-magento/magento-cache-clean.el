@@ -420,6 +420,8 @@ argument, as for `self-insert-command'."
   ;; Comint would close the watcher's input, ending its hotkeys.
   "C-d" #'undefined
   "C-c C-d" #'undefined
+  ;; Comint's has no timeout, and can hang on a lost connection.
+  "<remap> <comint-interrupt-subjob>" #'magento-cache-clean-watch-interrupt
   "C-c C-r" #'magento-cache-clean-watch-restart)
 
 (defun magento-cache-clean--watch-interrupt ()
@@ -464,7 +466,7 @@ Emacs only deletes processes when exiting; see
 Printable keys are sent straight to the cache-clean process, which
 handles them as hotkeys; see the cache-clean README for the list.
 The output is read-only.
-\\[comint-interrupt-subjob] stops the watcher, and \\[magento-cache-clean-watch-restart] or \
+\\[magento-cache-clean-watch-interrupt] stops the watcher, and \\[magento-cache-clean-watch-restart] or \
 \\[revert-buffer] restarts it with the same arguments.
 The buffer is truncated to `comint-buffer-maximum-size' lines.
 
@@ -657,6 +659,14 @@ else one of the running watchers read in the minibuffer."
     (user-error "Couldn't interrupt the watcher in %s, see *Messages*" buffer))
   (message "Interrupted the magento-cache-clean watcher in %s"
            (abbreviate-file-name (magento-cache-clean--output-root buffer))))
+
+(defun magento-cache-clean-watch-interrupt ()
+  "Stop the watcher in the current watch buffer.
+Unlike `comint-interrupt-subjob', this gives up on a remote watcher
+whose host doesn't answer within `magento-cache-clean-interrupt-timeout'
+seconds."
+  (interactive nil magento-cache-clean-watch-mode)
+  (magento-cache-clean-watch-stop (current-buffer)))
 
 ;;;###autoload
 (defun magento-cache-clean-watch-stop-all ()
