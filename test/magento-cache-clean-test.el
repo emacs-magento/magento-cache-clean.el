@@ -651,6 +651,18 @@ afterwards."
     (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer b)))
     (should (get-buffer-process (magento-cache-clean-test--watch-buffer a)))))
 
+(ert-deftest magento-cache-clean-test-menu-restarts-without-prompt ()
+  "From the menu, where it reads \"Restart watch\", restart doesn't ask."
+  (magento-cache-clean-test--with-watchers (a)
+    (let ((transient-current-command 'magento-cache-clean-transient)
+          (first (get-buffer-process (magento-cache-clean-test--watch-buffer a))))
+      (cl-letf (((symbol-function 'transient-scope) (lambda () (list :root a)))
+                ((symbol-function 'yes-or-no-p)
+                 (lambda (&rest _) (error "Unexpected prompt"))))
+        (magento-cache-clean-watch))
+      (should-not (eq first (get-buffer-process
+                             (magento-cache-clean-test--watch-buffer a)))))))
+
 (ert-deftest magento-cache-clean-test-stop-nothing-running ()
   "Stopping with no watcher running is a user error."
   (let ((default-directory temporary-file-directory))
