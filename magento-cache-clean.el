@@ -778,8 +778,11 @@ since that is where directory local values apply."
             (magento-cache-clean--menu-executable scope))))
 
 (defun magento-cache-clean--menu-watching-p ()
-  "Return non-nil if the menu's Magento root has a running watcher."
-  (magento-cache-clean--watch-process (plist-get (transient-scope) :root)))
+  "Return non-nil if the menu's Magento root has a running watcher.
+Outside the menu, as when `transient-args' reads its value, there is
+no root, and looking one up would only slow that down."
+  (when-let* ((root (plist-get (transient-scope) :root)))
+    (magento-cache-clean--watch-process root)))
 
 (defun magento-cache-clean--read-file-list (prompt initial-input history)
   "Read an existing file for --file-list, starting in the menu's root.
