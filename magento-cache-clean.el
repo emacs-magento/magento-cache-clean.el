@@ -345,7 +345,8 @@ Interactively, N is the prefix argument, as for `self-insert-command'."
   (setq n (or n 1))
   (when (< n 0)
     (user-error "Negative repetition argument %d" n))
-  (if-let* ((proc (get-buffer-process (current-buffer))))
+  (if-let* ((proc (get-buffer-process (current-buffer)))
+            ((process-live-p proc)))
       (process-send-string proc (make-string n last-command-event))
     (user-error "No watch process running")))
 

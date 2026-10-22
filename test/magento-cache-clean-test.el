@@ -579,6 +579,7 @@ return [
     (should (eq 'magento-cache-clean-watch-send-key (key-binding (kbd "RET"))))
     (let ((sent nil))
       (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-live-p) (lambda (_) t))
                 ((symbol-function 'process-send-string)
                  (lambda (_ string) (setq sent string))))
         (insert "Cleaned layout cache\n")
@@ -593,6 +594,7 @@ return [
     (magento-cache-clean-watch-mode)
     (let ((sent nil))
       (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-live-p) (lambda (_) t))
                 ((symbol-function 'process-send-string)
                  (lambda (_ string) (setq sent string))))
         (let ((last-command-event ?c)
@@ -602,6 +604,23 @@ return [
         (let ((last-command-event ?c))
           (magento-cache-clean-watch-send-key))
         (should (equal "c" sent))))))
+
+(ert-deftest magento-cache-clean-test-watch-send-key-exited-process ()
+  "A key sent to a watcher that has exited is a user error."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (let ((delete-exited-processes nil)
+          (proc (make-process :name "exited-watcher" :buffer (current-buffer)
+                              :command '("true"))))
+      (unwind-protect
+          (progn
+            (magento-cache-clean-test--wait-until
+             (lambda () (not (process-live-p proc))))
+            (should (eq proc (get-buffer-process (current-buffer))))
+            (let ((last-command-event ?c))
+              (should-error (magento-cache-clean-watch-send-key)
+                            :type 'user-error)))
+        (delete-process proc)))))
 
 (ert-deftest magento-cache-clean-test-watch-send-key-only-in-watch-mode ()
   "M-x offers the key forwarding command only in watch buffers."
@@ -614,6 +633,7 @@ return [
     (magento-cache-clean-watch-mode)
     (let ((sent nil))
       (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-live-p) (lambda (_) t))
                 ((symbol-function 'process-send-string)
                  (lambda (_ string) (setq sent string))))
         (let ((last-command-event ?c))
