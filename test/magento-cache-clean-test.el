@@ -367,6 +367,12 @@ The menu opened from it must find the same executable as from a file."
     (should-error (magento-cache-clean--executable "/a/src/")
                   :type 'user-error)))
 
+(ert-deftest magento-cache-clean-test-executable-empty ()
+  "An empty executable is a user error, not a program to run."
+  (let ((magento-cache-clean-executable ""))
+    (should-error (magento-cache-clean--executable "/a/src/")
+                  :type 'user-error)))
+
 ;;; Cache types
 
 (ert-deftest magento-cache-clean-test-cache-types-from-env ()
