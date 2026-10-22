@@ -176,6 +176,19 @@ also gets vendor/bin/cache-clean.js."
     (magento-cache-clean-test--with-programs root '("node" "cache-clean.js") nil
       (should (equal "cache-clean.js" (magento-cache-clean--executable root))))))
 
+(ert-deftest magento-cache-clean-test-auto-looks-up-node-only-when-needed ()
+  "Auto doesn't look for node when what it finds doesn't need it."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("node" "cache-clean") nil
+      (let ((found-p (symbol-function 'magento-cache-clean--found-p))
+            (looked-up nil))
+        (cl-letf (((symbol-function 'magento-cache-clean--found-p)
+                   (lambda (name r)
+                     (push name looked-up)
+                     (funcall found-p name r))))
+          (should (equal "cache-clean" (magento-cache-clean--executable root))))
+        (should-not (member "node" looked-up))))))
+
 (ert-deftest magento-cache-clean-test-auto-none-found ()
   "Auto signals an error naming what it tried."
   (magento-cache-clean-test--with-root root
