@@ -677,7 +677,7 @@ root is configured."
     (magento-cache-clean-watch-mode)
     (dolist (key '("c" "G" "?" "1"))
       (should (eq 'magento-cache-clean-watch-send-key (key-binding (kbd key)))))
-    (should (eq 'comint-interrupt-subjob (key-binding (kbd "C-c C-c"))))
+    (should (eq 'magento-cache-clean-watch-interrupt (key-binding (kbd "C-c C-c"))))
     (should (eq 'magento-cache-clean-watch-restart (key-binding (kbd "C-c C-r"))))
     ;; Not comint's, which would close the watcher's input.
     (should (eq 'undefined (key-binding (kbd "C-d"))))
@@ -1686,6 +1686,20 @@ That is slow when remote, and the command looks it up anyway."
         (should (< (- (float-time) start) 2))
         (should (string-search "Timed out" logged))
         (should (string-search (buffer-name) logged))))))
+
+(ert-deftest magento-cache-clean-test-watch-interrupt-key-times-out ()
+  "\\[comint-interrupt-subjob] in a watch buffer gives up on a hanging interrupt."
+  (magento-cache-clean-test--with-watchers (a)
+    (with-current-buffer (magento-cache-clean-test--watch-buffer a)
+      (let ((magento-cache-clean-interrupt-timeout 0.1)
+            (start (float-time)))
+        (cl-letf (((symbol-function 'interrupt-process)
+                   (lambda (&rest _) (sleep-for 5))))
+          (should-error (call-interactively (key-binding (kbd "C-c C-c")))
+                        :type 'user-error))
+        (should (< (- (float-time) start) 2))
+        (should (string-search "C-c C-c"
+                               (documentation 'magento-cache-clean-watch-mode)))))))
 
 (ert-deftest magento-cache-clean-test-stop-interrupt-failure ()
   "Stopping a watcher that can't be interrupted is a user error."
