@@ -25,5 +25,11 @@ jobs:
       - name: Lint
         run: make lint
 
+      # The Docker tests fail rather than skip when Docker is missing.
+      - name: Check Docker
+        run: docker info
+
       - name: Run tests
         run: make test
+        env:
+          MAGENTO_CACHE_CLEAN_REQUIRE_DOCKER: 1
