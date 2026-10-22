@@ -296,6 +296,44 @@ value is visible."
           (should (equal "cache-clean"
                          (magento-cache-clean--transient-executable scope))))))))
 
+(defun magento-cache-clean-test--write-dir-locals (root executable)
+  "Make EXECUTABLE ROOT's directory local `magento-cache-clean-executable'."
+  (write-region (format "((nil . ((magento-cache-clean-executable . %S))))\n"
+                        executable)
+                nil (expand-file-name ".dir-locals.el" root)))
+
+(ert-deftest magento-cache-clean-test-one-shot-buffer-uses-dir-locals ()
+  "The one-shot buffer has the root's directory local values.
+The menu opened from it must find the same executable as from a file."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--write-dir-locals root "cache-clean")
+    (let* ((enable-local-variables :safe)
+           (magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "echo done"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean)))
+      (unwind-protect
+          (with-current-buffer buf
+            (should (equal "cache-clean" magento-cache-clean-executable)))
+        (magento-cache-clean-test--wait buf)
+        (kill-buffer buf)))))
+
+(ert-deftest magento-cache-clean-test-watch-restart-uses-dir-locals ()
+  "Restarting from the watch buffer keeps the root's executable."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean" "node") t
+      (magento-cache-clean-test--write-dir-locals root "cache-clean")
+      (let* ((enable-local-variables :safe)
+             (buf (magento-cache-clean--watch-start root nil)))
+        (unwind-protect
+            (with-current-buffer buf
+              (should (equal "cache-clean" magento-cache-clean-executable))
+              (should (equal "cache-clean"
+                             (car (magento-cache-clean--command root nil)))))
+          (let ((kill-buffer-query-functions nil))
+            (kill-buffer buf)))))))
+
 (ert-deftest magento-cache-clean-test-command-reuses-menu-executable ()
   "From the menu, the command uses the executable the menu found."
   (let ((transient-current-command 'magento-cache-clean-transient))

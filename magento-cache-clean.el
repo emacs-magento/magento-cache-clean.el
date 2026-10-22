@@ -300,6 +300,9 @@ empty.  Add entries to make parts of the output clickable.")
 
 (define-compilation-mode magento-cache-clean-mode "MagentoCacheClean"
   "Major mode for one-shot magento-cache-clean output."
+  ;; `compilation-start' sets the root as `default-directory' first.
+  ;; The root's options then apply when the menu is opened from here.
+  (hack-dir-local-variables-non-file-buffer)
   (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter nil t))
 
 (defvar-local magento-cache-clean--watch-args nil
@@ -356,6 +359,9 @@ restarted."
         (magento-cache-clean-watch-mode))
       ;; Set after the mode change, which kills local variables.
       (setq default-directory root)
+      ;; So that a restart or the menu opened from here use the root's
+      ;; options, not the global ones.
+      (hack-dir-local-variables-non-file-buffer)
       (if env
           (setq-local process-environment env)
         (kill-local-variable 'process-environment))
