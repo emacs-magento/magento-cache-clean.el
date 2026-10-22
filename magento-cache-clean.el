@@ -542,22 +542,45 @@ lost, doesn't keep the others running."
     "config_webservice" "translate")
   "Cache types of Magento Open Source, completed without an env.php.")
 
+(defconst magento-cache-clean--php-syntax-table
+  (let ((table (make-syntax-table)))
+    (modify-syntax-entry ?/ ". 124b" table)
+    (modify-syntax-entry ?* ". 23" table)
+    (modify-syntax-entry ?# "< b" table)
+    (modify-syntax-entry ?\n "> b" table)
+    (modify-syntax-entry ?' "\"" table)
+    table)
+  "Syntax table telling PHP comments and strings apart in env.php.")
+
+(defun magento-cache-clean--search-code (regexp &optional bound)
+  "Search forward for REGEXP up to BOUND, skipping comments and strings.
+Return the match's end like `re-search-forward', or nil."
+  (let (found)
+    (while (and (setq found (re-search-forward regexp bound t))
+                ;; `syntax-ppss' moves point.
+                (save-match-data
+                  (save-excursion
+                    (nth 8 (syntax-ppss (match-beginning 0)))))))
+    found))
+
 (defun magento-cache-clean--env-cache-types (root)
   "Return the cache types listed in Magento ROOT's app/etc/env.php, or nil.
 Return nil too when the list isn't closed, rather than reading the
-keys of the rest of the file as cache types."
+keys of the rest of the file as cache types.  Commented out code is
+skipped."
   (with-temp-buffer
     (insert-file-contents (expand-file-name "app/etc/env.php" root))
-    (when-let* (((re-search-forward
+    (set-syntax-table magento-cache-clean--php-syntax-table)
+    (when-let* (((magento-cache-clean--search-code
                   (rx (in "'\"") "cache_types" (in "'\"") (* (in " \t\n")) "=>"
-                      (* (in " \t\n")) (or "[" (seq "array" (* (in " \t")) "(")))
-                  nil t))
-                (end (save-excursion (re-search-forward (rx (in "])")) nil t))))
+                      (* (in " \t\n")) (or "[" (seq "array" (* (in " \t")) "(")))))
+                (end (save-excursion
+                       (magento-cache-clean--search-code (rx (in "])"))))))
       (let (types)
-        (while (re-search-forward
+        (while (magento-cache-clean--search-code
                 (rx (in "'\"") (group (+ (not (in "'\"")))) (in "'\"")
                     (* (in " \t\n")) "=>")
-                end t)
+                end)
           (push (match-string 1) types))
         (nreverse types)))))
 

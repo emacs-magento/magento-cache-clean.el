@@ -411,6 +411,28 @@ The menu opened from it must find the same executable as from a file."
                   nil (expand-file-name "app/etc/env.php" root))
     (should (equal '("layout") (magento-cache-clean--env-cache-types root)))))
 
+(ert-deftest magento-cache-clean-test-cache-types-skip-comments ()
+  "Commented out cache types and brackets in comments are skipped."
+  (magento-cache-clean-test--with-root root
+    (write-region "<?php
+return [
+    // 'cache_types' => ['old' => 1],
+    # 'cache_types' => ['older' => 1],
+    /* 'cache_types' => [
+        'oldest' => 1,
+    ], */
+    'cache_types' => [
+        'config' => 1, // keeps ] out
+        # 'disabled' => 0,
+        /* 'gone' => 1, */
+        'layout' => 1
+    ]
+];
+"
+                  nil (expand-file-name "app/etc/env.php" root))
+    (should (equal '("config" "layout")
+                   (magento-cache-clean--env-cache-types root)))))
+
 (ert-deftest magento-cache-clean-test-cache-types-unclosed ()
   "An unclosed cache types list gives none, not the keys after it."
   (magento-cache-clean-test--with-root root
