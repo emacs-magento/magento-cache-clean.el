@@ -522,6 +522,22 @@ The menu opened from it must find the same executable as from a file."
           (call-interactively (key-binding (kbd "RET")))))
       (should (equal "\r" sent)))))
 
+(ert-deftest magento-cache-clean-test-watch-send-key-repeats ()
+  "A prefix argument sends the key that many times, as when typing."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (let ((sent nil))
+      (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-send-string)
+                 (lambda (_ string) (setq sent string))))
+        (let ((last-command-event ?c)
+              (current-prefix-arg 3))
+          (call-interactively #'magento-cache-clean-watch-send-key))
+        (should (equal "ccc" sent))
+        (let ((last-command-event ?c))
+          (magento-cache-clean-watch-send-key))
+        (should (equal "c" sent))))))
+
 (ert-deftest magento-cache-clean-test-watch-truncates-buffer ()
   "Watch buffers are truncated, as a watcher can run for days."
   (with-temp-buffer

@@ -308,12 +308,13 @@ empty.  Add entries to make parts of the output clickable.")
 (defvar-local magento-cache-clean--watch-args nil
   "Command line arguments the watch process in this buffer was started with.")
 
-(defun magento-cache-clean-watch-send-key ()
-  "Send the key just pressed to the watch process.
-cache-clean reads stdin in raw mode and handles the key itself."
-  (interactive)
+(defun magento-cache-clean-watch-send-key (&optional n)
+  "Send the key just pressed to the watch process, N times.
+cache-clean reads stdin in raw mode and handles the key itself.
+Interactively, N is the prefix argument, as for `self-insert-command'."
+  (interactive "p")
   (if-let* ((proc (get-buffer-process (current-buffer))))
-      (process-send-string proc (string last-command-event))
+      (process-send-string proc (make-string (or n 1) last-command-event))
     (user-error "No watch process running")))
 
 (defvar-keymap magento-cache-clean-watch-mode-map
