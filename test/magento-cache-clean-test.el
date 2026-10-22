@@ -422,9 +422,30 @@ With error regexps, its buffer becomes the one `next-error' visits."
               (magento-cache-clean-watch-restart)
               (should-not (local-variable-p 'magento-cache-clean-executable))
               (should (equal (expand-file-name "vendor/bin/cache-clean.js" root)
-                             (car (magento-cache-clean--command root nil)))))
+                             (car (process-command (get-buffer-process buf))))))
           (let ((kill-buffer-query-functions nil))
             (kill-buffer buf)))))))
+
+(ert-deftest magento-cache-clean-test-watch-restart-without-executable-keeps-watcher ()
+  "A restart that finds no executable says why and keeps the watcher."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--write-dir-locals
+     root (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+    (let* ((enable-local-variables :all)
+           (dir-locals-directory-cache nil)
+           (buf (magento-cache-clean--watch-start root nil))
+           (proc (get-buffer-process buf)))
+      (unwind-protect
+          (with-current-buffer buf
+            (write-region "()\n" nil (expand-file-name ".dir-locals.el" root))
+            (setq dir-locals-directory-cache nil)
+            (let ((exec-path nil))
+              (should-error (magento-cache-clean-watch-restart) :type 'user-error))
+            (should (eq proc (get-buffer-process buf)))
+            (should (process-live-p proc))
+            (should (string-match-p "No cache-clean found.*\n\\'" (buffer-string))))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf))))))
 
 (ert-deftest magento-cache-clean-test-watch-restart-keeps-mode-values ()
   "A value the mode sets survives a restart after .dir-locals.el drops it."

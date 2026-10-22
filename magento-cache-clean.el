@@ -504,37 +504,45 @@ ENV and PATH are the local `process-environment' and variable
 When ROOT is on the current buffer's host, the process inherits the
 current buffer's local `process-environment' and variable `exec-path',
 as with `compilation-start'.  Any watcher already running for ROOT is
-restarted."
+restarted.
+
+Run from ROOT's watch buffer, the executable is looked up after the
+root's .dir-locals.el is read again, so that a restart sees its
+changes.  When none is found then, the running watcher is kept."
   (let* ((same-host (magento-cache-clean--same-host-p root))
          (env (and same-host (local-variable-p 'process-environment)
                    process-environment))
          (path (and same-host (local-variable-p 'exec-path) exec-path))
-         ;; Before creating the buffer, as no executable may be found.
-         (command (magento-cache-clean--command root (cons "--watch" args)))
          (old-buf (magento-cache-clean--root-watch-buffer root))
+         ;; Else before creating the buffer, as no executable may be found.
+         (command (unless (eq old-buf (current-buffer))
+                    (magento-cache-clean--command root (cons "--watch" args))))
          ;; A buffer that already has the name isn't ROOT's watch
          ;; buffer, so it is left alone.
          (buf (or old-buf
                   (generate-new-buffer (magento-cache-clean--buffer-name root t)))))
     (with-current-buffer buf
       (magento-cache-clean--watch-reset root args env path)
-      ;; `comint-exec' would only delete a running watcher, which leaves
-      ;; a remote one running.  A local one is killed by that deletion
-      ;; right after, before it handles the interrupt, so it can't rely
-      ;; on exiting cleanly.
-      (magento-cache-clean--watch-interrupt)
       (goto-char (point-max))
-      (let ((inhibit-read-only t))
-        (insert (propertize (concat "$ " (magento-cache-clean--shell-command
-                                          command root)
-                                    "\n")
-                            'font-lock-face 'comint-highlight-input)))
       ;; A configured executable isn't checked, so it may not be found,
       ;; and connecting to a remote root may be quit.  Don't leave a new
-      ;; buffer without a process, and tell why in one whose watcher was
-      ;; just stopped.
+      ;; buffer without a process, and tell why in an existing one.
       (condition-case err
-          (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
+          (progn
+            (unless command
+              (setq command (magento-cache-clean--command
+                             root (cons "--watch" args))))
+            ;; `comint-exec' would only delete a running watcher, which
+            ;; leaves a remote one running.  A local one is killed by
+            ;; that deletion right after, before it handles the
+            ;; interrupt, so it can't rely on exiting cleanly.
+            (magento-cache-clean--watch-interrupt)
+            (let ((inhibit-read-only t))
+              (insert (propertize (concat "$ " (magento-cache-clean--shell-command
+                                                command root)
+                                          "\n")
+                                  'font-lock-face 'comint-highlight-input)))
+            (comint-exec buf (buffer-name buf) (car command) nil (cdr command)))
         ((error quit)
          (if old-buf
              (let ((inhibit-read-only t))
