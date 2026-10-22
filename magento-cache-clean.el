@@ -588,7 +588,9 @@ PROMPT, INITIAL-INPUT and HISTORY are as for a transient reader."
 (transient-define-prefix magento-cache-clean-transient (&optional choose-root)
   "Transient interface for magento-cache-clean.
 The Magento root is detected when the menu opens.  With a prefix
-argument CHOOSE-ROOT, or when it can't be detected, prompt for it."
+argument CHOOSE-ROOT, or when it can't be detected, prompt for it.
+Options such as `magento-cache-clean-executable' are those of the
+current buffer, even for a root chosen elsewhere."
   [:description magento-cache-clean--transient-description
    ["Options"
     (magento-cache-clean--infix-verbosity)
