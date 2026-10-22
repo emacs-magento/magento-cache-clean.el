@@ -378,7 +378,11 @@ The buffer is truncated to `comint-buffer-maximum-size' lines.
 \\{magento-cache-clean-watch-mode-map}"
   (setq-local revert-buffer-function #'magento-cache-clean--watch-revert)
   (add-hook 'kill-buffer-hook #'magento-cache-clean--watch-interrupt nil t)
-  (add-hook 'comint-output-filter-functions #'comint-truncate-buffer nil t))
+  (add-hook 'comint-output-filter-functions #'comint-truncate-buffer nil t)
+  ;; The watcher never asks for a password, so output that looks like a
+  ;; prompt for one mustn't read it in the minibuffer.  Removing
+  ;; `comint-watch-for-password-prompt' locally would leave the global one.
+  (setq-local comint-password-prompt-regexp regexp-unmatchable))
 
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
