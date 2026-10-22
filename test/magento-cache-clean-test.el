@@ -8,6 +8,7 @@
 
 (require 'cl-lib)
 (require 'ert)
+(require 'ert-x)
 (require 'magento-cache-clean)
 
 ;;; Helpers
@@ -16,13 +17,11 @@
   "Bind VAR to a temporary Magento root while running BODY.
 The root has an empty app/etc/env.php and is deleted afterwards."
   (declare (indent 1))
-  `(let ((,var (file-name-as-directory (make-temp-file "magento-test" t))))
-     (unwind-protect
-         (progn
-           (make-directory (expand-file-name "app/etc" ,var) t)
-           (write-region "" nil (expand-file-name "app/etc/env.php" ,var))
-           ,@body)
-       (delete-directory ,var t))))
+  `(ert-with-temp-directory ,var
+     :prefix "magento-test"
+     (make-directory (expand-file-name "app/etc" ,var) t)
+     (write-region "" nil (expand-file-name "app/etc/env.php" ,var))
+     ,@body))
 
 (defun magento-cache-clean-test--fake-executable (dir script)
   "Write SCRIPT as an executable named fake-cache-clean in DIR.
@@ -517,14 +516,13 @@ return [
 
 (ert-deftest magento-cache-clean-test-detect-directory-not-found ()
   "Return nil when not in a Magento project and not prompting."
-  (let ((temp-dir (make-temp-file "not-magento" t)))
-    (unwind-protect
-        (let ((default-directory (file-name-as-directory temp-dir))
-              (magento-cache-clean-directory nil))
-          (cl-letf (((symbol-function 'read-directory-name)
-                     (lambda (&rest _) (error "Unexpected prompt"))))
-            (should-not (magento-cache-clean--root))))
-      (delete-directory temp-dir t))))
+  (ert-with-temp-directory temp-dir
+    :prefix "not-magento"
+    (let ((default-directory temp-dir)
+          (magento-cache-clean-directory nil))
+      (cl-letf (((symbol-function 'read-directory-name)
+                 (lambda (&rest _) (error "Unexpected prompt"))))
+        (should-not (magento-cache-clean--root))))))
 
 (ert-deftest magento-cache-clean-test-directory-uses-menu-root ()
   "Commands run from the menu use the root it was opened with."
@@ -535,12 +533,10 @@ return [
 
 (ert-deftest magento-cache-clean-test-directory-uses-custom ()
   "Use custom directory when set."
-  (let ((temp-dir (make-temp-file "magento-test" t)))
-    (unwind-protect
-        (let ((magento-cache-clean-directory temp-dir))
-          (should (equal (file-name-as-directory (expand-file-name temp-dir))
-                         (magento-cache-clean--directory))))
-      (delete-directory temp-dir t))))
+  (ert-with-temp-directory temp-dir
+    :prefix "magento-test"
+    (let ((magento-cache-clean-directory (directory-file-name temp-dir)))
+      (should (equal temp-dir (magento-cache-clean--directory))))))
 
 (ert-deftest magento-cache-clean-test-directory-custom-missing ()
   "A configured root that isn't a directory is a user error."
@@ -550,47 +546,44 @@ return [
 (ert-deftest magento-cache-clean-test-directory-of-output-buffer ()
   "An output buffer's root is used, even without env.php or when another
 root is configured."
-  (let ((dir (file-name-as-directory (make-temp-file "not-magento" t)))
-        (magento-cache-clean-directory "/elsewhere/"))
-    (unwind-protect
-        (cl-letf (((symbol-function 'read-directory-name)
-                   (lambda (&rest _) (error "Unexpected prompt"))))
-          (dolist (mode '(magento-cache-clean-watch-mode
-                          magento-cache-clean-compilation-mode))
-            (with-temp-buffer
-              (setq default-directory dir)
-              (let ((enable-local-variables nil))
-                (funcall mode))
-              (should (equal dir (magento-cache-clean--directory))))))
-      (delete-directory dir t))))
+  (ert-with-temp-directory dir
+    :prefix "not-magento"
+    (let ((magento-cache-clean-directory "/elsewhere/"))
+      (cl-letf (((symbol-function 'read-directory-name)
+                 (lambda (&rest _) (error "Unexpected prompt"))))
+        (dolist (mode '(magento-cache-clean-watch-mode
+                        magento-cache-clean-compilation-mode))
+          (with-temp-buffer
+            (setq default-directory dir)
+            (let ((enable-local-variables nil))
+              (funcall mode))
+            (should (equal dir (magento-cache-clean--directory)))))))))
 
 (ert-deftest magento-cache-clean-test-directory-prompt-is-expanded ()
   "A prompted directory is expanded, since the watch process gets no shell."
-  (let ((temp-dir (make-temp-file "not-magento" t)))
-    (unwind-protect
-        (let ((default-directory (file-name-as-directory temp-dir))
-              (magento-cache-clean-directory nil))
-          (cl-letf (((symbol-function 'read-directory-name)
-                     (lambda (&rest _) "~/magento"))
-                    ((symbol-function 'yes-or-no-p) #'always))
-            (should (equal (file-name-as-directory (expand-file-name "~/magento"))
-                           (magento-cache-clean--directory)))))
-      (delete-directory temp-dir t))))
+  (ert-with-temp-directory temp-dir
+    :prefix "not-magento"
+    (let ((default-directory temp-dir)
+          (magento-cache-clean-directory nil))
+      (cl-letf (((symbol-function 'read-directory-name)
+                 (lambda (&rest _) "~/magento"))
+                ((symbol-function 'yes-or-no-p) #'always))
+        (should (equal (file-name-as-directory (expand-file-name "~/magento"))
+                       (magento-cache-clean--directory)))))))
 
 (ert-deftest magento-cache-clean-test-read-root-confirms-non-magento ()
   "A prompted directory without env.php is only used after confirmation."
-  (let ((dir (file-name-as-directory (make-temp-file "not-magento" t)))
-        (asked nil))
-    (unwind-protect
-        (cl-letf (((symbol-function 'read-directory-name)
-                   (lambda (&rest _) dir)))
-          (cl-letf (((symbol-function 'yes-or-no-p)
-                     (lambda (&rest _) (setq asked t) nil)))
-            (should-error (magento-cache-clean--read-root) :type 'user-error))
-          (should asked)
-          (cl-letf (((symbol-function 'yes-or-no-p) #'always))
-            (should (equal dir (magento-cache-clean--read-root)))))
-      (delete-directory dir t)))
+  (ert-with-temp-directory dir
+    :prefix "not-magento"
+    (let ((asked nil))
+      (cl-letf (((symbol-function 'read-directory-name)
+                 (lambda (&rest _) dir)))
+        (cl-letf (((symbol-function 'yes-or-no-p)
+                   (lambda (&rest _) (setq asked t) nil)))
+          (should-error (magento-cache-clean--read-root) :type 'user-error))
+        (should asked)
+        (cl-letf (((symbol-function 'yes-or-no-p) #'always))
+          (should (equal dir (magento-cache-clean--read-root)))))))
   (magento-cache-clean-test--with-root root
     (cl-letf (((symbol-function 'read-directory-name) (lambda (&rest _) root))
               ((symbol-function 'yes-or-no-p)
