@@ -366,7 +366,9 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   (interactive (list (magento-cache-clean--arguments)))
   (let* ((root (magento-cache-clean--directory))
          (name (magento-cache-clean--buffer-name root))
-         (command (mapconcat #'shell-quote-argument
+         ;; A remote shell is POSIX, whatever the local system is.
+         (posix (file-remote-p root))
+         (command (mapconcat (lambda (arg) (shell-quote-argument arg posix))
                              (magento-cache-clean--command root args)
                              " "))
          (start (lambda ()

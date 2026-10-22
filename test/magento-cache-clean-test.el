@@ -611,6 +611,32 @@ either, so later changes to the global values reach restarts."
           (magento-cache-clean nil)
           (should local-env))))))
 
+(ert-deftest magento-cache-clean-test-one-shot-remote-quotes-posix ()
+  "A remote one-shot command is quoted for a POSIX shell."
+  (let ((magento-cache-clean-executable "cache-clean")
+        (posix-args nil)
+        (quote-argument (symbol-function 'shell-quote-argument)))
+    (cl-letf (((symbol-function 'magento-cache-clean--buffer-name)
+               (lambda (&rest _) "*magento-cache-clean-test*"))
+              ((symbol-function 'compilation-start) #'ignore)
+              ((symbol-function 'shell-quote-argument)
+               (lambda (arg &optional posix)
+                 (push posix posix-args)
+                 (funcall quote-argument arg posix)))
+              ;; Don't let Tramp connect to check the root.
+              ((symbol-function 'file-directory-p) #'always))
+      (let ((default-directory temporary-file-directory)
+            (magento-cache-clean-directory "/ssh:host:/var/www/"))
+        (magento-cache-clean nil)
+        (should posix-args)
+        (should (cl-every #'identity posix-args)))
+      (setq posix-args nil)
+      (let ((default-directory temporary-file-directory)
+            (magento-cache-clean-directory temporary-file-directory))
+        (magento-cache-clean nil)
+        (should posix-args)
+        (should-not (cl-some #'identity posix-args))))))
+
 (ert-deftest magento-cache-clean-test-watch-other-host-skips-caller-env ()
   "A watcher on another host doesn't get the caller's environment."
   (magento-cache-clean-test--with-root root
