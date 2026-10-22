@@ -514,7 +514,8 @@ restarted."
 ;;;###autoload
 (defun magento-cache-clean (&optional args)
   "Run cache-clean once with command line ARGS.
-Interactively, ARGS come from `magento-cache-clean-menu'."
+Interactively, ARGS come from `magento-cache-clean-menu'.
+Return the output buffer."
   (interactive (list (magento-cache-clean--arguments)))
   (let* ((root (magento-cache-clean--directory))
          (name (magento-cache-clean--buffer-name root))

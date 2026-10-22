@@ -336,6 +336,23 @@ The menu opened from it must find the same executable as from a file."
         (magento-cache-clean-test--wait buf)
         (kill-buffer buf)))))
 
+(ert-deftest magento-cache-clean-test-one-shot-returns-buffer ()
+  "A one-shot clean returns its output buffer, also for another host."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable
+           (magento-cache-clean-test--fake-executable root "echo done"))
+          (default-directory root)
+          (magento-cache-clean-directory nil))
+      (dolist (same-host '(t nil))
+        (cl-letf (((symbol-function 'magento-cache-clean--same-host-p)
+                   (lambda (_) same-host)))
+          (let ((buf (magento-cache-clean)))
+            (unwind-protect
+                (should (eq buf (get-buffer
+                                 (magento-cache-clean--buffer-name root))))
+              (magento-cache-clean-test--wait buf)
+              (kill-buffer buf))))))))
+
 (ert-deftest magento-cache-clean-test-one-shot-dir-local-error-regexps ()
   "The one-shot buffer uses the root's error regexps."
   (magento-cache-clean-test--with-root root
