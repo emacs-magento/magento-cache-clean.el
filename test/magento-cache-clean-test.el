@@ -691,6 +691,20 @@ root is configured."
                         :type 'user-error)
           (should-not sent))))))
 
+(ert-deftest magento-cache-clean-test-watch-send-key-non-character ()
+  "An event that isn't a character, as from M-x, is a user error."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (let ((sent nil))
+      (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-live-p) (lambda (_) t))
+                ((symbol-function 'process-send-string)
+                 (lambda (_ string) (setq sent string))))
+        (let ((last-command-event 'f5))
+          (should-error (magento-cache-clean-watch-send-key)
+                        :type 'user-error))
+        (should-not sent)))))
+
 (ert-deftest magento-cache-clean-test-watch-truncates-buffer ()
   "Watch buffers are truncated, as a watcher can run for days."
   (with-temp-buffer
