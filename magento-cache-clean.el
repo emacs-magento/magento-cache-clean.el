@@ -460,8 +460,10 @@ restarted."
          ;; Before creating the buffer, as no executable may be found.
          (command (magento-cache-clean--command root (cons "--watch" args)))
          (old-buf (magento-cache-clean--root-watch-buffer root))
+         ;; A buffer that already has the name isn't ROOT's watch
+         ;; buffer, so it is left alone.
          (buf (or old-buf
-                  (get-buffer-create (magento-cache-clean--buffer-name root t)))))
+                  (generate-new-buffer (magento-cache-clean--buffer-name root t)))))
     (with-current-buffer buf
       (unless (derived-mode-p 'magento-cache-clean-watch-mode)
         (magento-cache-clean-watch-mode))
