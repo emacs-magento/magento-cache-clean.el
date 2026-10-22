@@ -393,6 +393,7 @@ Emacs only deletes processes when exiting; see
   "Major mode for magento-cache-clean watch buffers.
 Printable keys are sent straight to the cache-clean process, which
 handles them as hotkeys; see the cache-clean README for the list.
+The output is read-only.
 \\[comint-interrupt-subjob] stops the watcher, and \\[magento-cache-clean-watch-restart] or \
 \\[revert-buffer] restarts it with the same arguments.
 The buffer is truncated to `comint-buffer-maximum-size' lines.
@@ -404,7 +405,10 @@ The buffer is truncated to `comint-buffer-maximum-size' lines.
   ;; The watcher never asks for a password, so output that looks like a
   ;; prompt for one mustn't read it in the minibuffer.  Removing
   ;; `comint-watch-for-password-prompt' locally would leave the global one.
-  (setq-local comint-password-prompt-regexp regexp-unmatchable))
+  (setq-local comint-password-prompt-regexp regexp-unmatchable)
+  ;; Keys that aren't sent, such as DEL, mustn't edit the output.
+  ;; Comint inserts output and process messages regardless.
+  (setq buffer-read-only t))
 
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
@@ -446,8 +450,9 @@ restarted."
       ;; `comint-exec' would only delete a running watcher.
       (magento-cache-clean--watch-interrupt)
       (goto-char (point-max))
-      (insert (propertize (concat "$ " (combine-and-quote-strings command) "\n")
-                          'font-lock-face 'comint-highlight-input))
+      (let ((inhibit-read-only t))
+        (insert (propertize (concat "$ " (combine-and-quote-strings command) "\n")
+                            'font-lock-face 'comint-highlight-input)))
       ;; A configured executable isn't checked, so it may not be found.
       ;; Don't leave a new buffer without a process, and tell why in one
       ;; whose watcher was just stopped.
@@ -455,7 +460,8 @@ restarted."
           (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
         (error
          (if old-buf
-             (insert (error-message-string err) "\n")
+             (let ((inhibit-read-only t))
+               (insert (error-message-string err) "\n"))
            (kill-buffer buf))
          (signal (car err) (cdr err))))
       ;; Tramp may already have reaped a remote command that exited at

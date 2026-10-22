@@ -582,7 +582,8 @@ return [
                 ((symbol-function 'process-live-p) (lambda (_) t))
                 ((symbol-function 'process-send-string)
                  (lambda (_ string) (setq sent string))))
-        (insert "Cleaned layout cache\n")
+        (let ((inhibit-read-only t))
+          (insert "Cleaned layout cache\n"))
         (goto-char (point-min))
         (let ((last-command-event ?\r))
           (call-interactively (key-binding (kbd "RET")))))
@@ -649,6 +650,26 @@ return [
   (with-temp-buffer
     (magento-cache-clean-watch-mode)
     (should (memq #'comint-truncate-buffer comint-output-filter-functions))))
+
+(ert-deftest magento-cache-clean-test-watch-output-read-only ()
+  "Keys that aren't sent to the watcher can't edit its output."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable
+             root "echo ready; exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch)))
+      (unwind-protect
+          (with-current-buffer buf
+            (magento-cache-clean-test--wait-for-output buf "ready")
+            (goto-char (point-max))
+            (should-error (delete-char -1) :type 'buffer-read-only)
+            (should (string-match-p "ready" (buffer-string)))
+            (magento-cache-clean-watch-stop buf)
+            (magento-cache-clean-test--wait buf)
+            (should (string-match-p "^Process .* interrupt" (buffer-string))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
 
 (ert-deftest magento-cache-clean-test-watch-ignores-password-prompts ()
   "Output looking like a password prompt doesn't read a password."
@@ -1122,7 +1143,8 @@ Deleting a remote process leaves the watcher running on its host."
       (unwind-protect
           (with-current-buffer buf
             (let ((first (get-buffer-process buf)))
-              (erase-buffer)
+              (let ((inhibit-read-only t))
+                (erase-buffer))
               (revert-buffer)
               (should-not (eq first (get-buffer-process buf)))
               (magento-cache-clean-test--wait-for-output
