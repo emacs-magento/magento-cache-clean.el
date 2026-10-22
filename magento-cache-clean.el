@@ -475,6 +475,30 @@ The buffer is truncated to `comint-buffer-maximum-size' lines.
   ;; Comint inserts output and process messages regardless.
   (setq buffer-read-only t))
 
+(defun magento-cache-clean--watch-reset (root args env path)
+  "Set up the current buffer to watch Magento ROOT with ARGS.
+ENV and PATH are the local `process-environment' and variable
+`exec-path' to run the watcher with, or nil for the global ones."
+  ;; Before the mode's hooks run, which may look things up in it.
+  ;; Unlike most variables, a mode change doesn't reset it.
+  (setq default-directory root)
+  ;; Also on a restart, to forget the local values of the previous
+  ;; start, such as those .dir-locals.el no longer sets.
+  (magento-cache-clean-watch-mode)
+  ;; It survives the mode change, and would bring them back.
+  (setq file-local-variables-alist nil)
+  ;; So that a restart or the menu opened from here use the root's
+  ;; options, not the global ones.
+  (hack-dir-local-variables-non-file-buffer)
+  (if env
+      (setq-local process-environment env)
+    (kill-local-variable 'process-environment))
+  (if path
+      (setq-local exec-path path)
+    (kill-local-variable 'exec-path))
+  (setq magento-cache-clean--watch-root root
+        magento-cache-clean--watch-args args))
+
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
 When ROOT is on the current buffer's host, the process inherits the
@@ -493,25 +517,7 @@ restarted."
          (buf (or old-buf
                   (generate-new-buffer (magento-cache-clean--buffer-name root t)))))
     (with-current-buffer buf
-      ;; Before the mode's hooks run, which may look things up in it.
-      ;; Unlike most variables, a mode change doesn't reset it.
-      (setq default-directory root)
-      ;; Also on a restart, to forget the local values of the previous
-      ;; start, such as those .dir-locals.el no longer sets.
-      (magento-cache-clean-watch-mode)
-      ;; It survives the mode change, and would bring them back.
-      (setq file-local-variables-alist nil)
-      ;; So that a restart or the menu opened from here use the root's
-      ;; options, not the global ones.
-      (hack-dir-local-variables-non-file-buffer)
-      (if env
-          (setq-local process-environment env)
-        (kill-local-variable 'process-environment))
-      (if path
-          (setq-local exec-path path)
-        (kill-local-variable 'exec-path))
-      (setq magento-cache-clean--watch-root root
-            magento-cache-clean--watch-args args)
+      (magento-cache-clean--watch-reset root args env path)
       ;; `comint-exec' would only delete a running watcher, which leaves
       ;; a remote one running.  A local one is killed by that deletion
       ;; right after, before it handles the interrupt, so it can't rely
