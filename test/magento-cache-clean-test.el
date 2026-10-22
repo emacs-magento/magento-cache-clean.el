@@ -1275,6 +1275,42 @@ Deleting a remote process leaves the watcher running on its host."
                             (quit 'quit)))))
       (should-not (magento-cache-clean--root-watch-buffer root)))))
 
+(ert-deftest magento-cache-clean-test-watch-quit-in-setup-leaves-no-buffer ()
+  "Quitting the question whether to apply .dir-locals.el leaves no buffer."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable "cache-clean")
+          (default-directory root)
+          (magento-cache-clean-directory nil))
+      (cl-letf (((symbol-function 'hack-dir-local-variables-non-file-buffer)
+                 (lambda () (signal 'quit nil))))
+        (should (eq 'quit (condition-case nil
+                              (magento-cache-clean-watch)
+                            (quit 'quit)))))
+      (should-not (get-buffer (magento-cache-clean--buffer-name root t))))))
+
+(ert-deftest magento-cache-clean-test-watch-quit-in-restart-setup-keeps-watcher ()
+  "Quitting a restart's setup keeps the watcher findable by its root."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch))
+           (proc (get-buffer-process buf)))
+      (unwind-protect
+          (with-current-buffer buf
+            (cl-letf (((symbol-function 'hack-dir-local-variables-non-file-buffer)
+                       (lambda () (signal 'quit nil))))
+              (should (eq 'quit (condition-case nil
+                                    (magento-cache-clean-watch-restart)
+                                  (quit 'quit)))))
+            (should (process-live-p proc))
+            (should (eq buf (magento-cache-clean--root-watch-buffer root)))
+            (should (eq proc (magento-cache-clean--watch-process root)))
+            (should (string-match-p "Quit\n\\'" (buffer-string))))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-leaves-buffer-with-same-name ()
   "A buffer that has the watch buffer's name but isn't it is left alone.
 Neither a failed start kills it nor a successful one takes it over."
