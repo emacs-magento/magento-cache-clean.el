@@ -1316,5 +1316,21 @@ afterwards."
   (should-not (safe-local-variable-p 'magento-cache-clean-directory "src"))
   (should-not (safe-local-variable-p 'magento-cache-clean-directory 42)))
 
+(ert-deftest magento-cache-clean-test-directory-safe-local-same-host ()
+  "Directory is only safe as a dir-local on the buffer's own host."
+  (let ((default-directory "/"))
+    (should-not (safe-local-variable-p 'magento-cache-clean-directory
+                                       "/sudo::/path/to/magento/"))
+    (should-not (safe-local-variable-p 'magento-cache-clean-directory
+                                       "/ssh:other:/srv/magento/")))
+  ;; A remote .dir-locals.el may name a root on its own host.
+  (let ((default-directory "/ssh:host:/srv/magento/app/"))
+    (should (safe-local-variable-p 'magento-cache-clean-directory
+                                   "/ssh:host:/srv/magento/"))
+    (should-not (safe-local-variable-p 'magento-cache-clean-directory
+                                       "/srv/magento/"))
+    (should-not (safe-local-variable-p 'magento-cache-clean-directory
+                                       "/ssh:other:/srv/magento/"))))
+
 (provide 'magento-cache-clean-test)
 ;;; magento-cache-clean-test.el ends here

@@ -93,10 +93,17 @@ values, since any other value could run any program."
 When nil, auto-detected by searching for app/etc/env.php.
 
 A relative name is relative to the current buffer's directory, so only
-absolute names are safe as directory local values."
+absolute names are safe as directory local values.  They must also be
+on the buffer's host, as a remote name such as /sudo::/ could run the
+root's cache-clean as another user or on another machine."
   :type '(choice (const :tag "Auto-detect" nil)
                  (directory :tag "Directory"))
-  :safe (lambda (v) (or (null v) (and (stringp v) (file-name-absolute-p v)))))
+  :safe (lambda (v)
+          (or (null v)
+              (and (stringp v)
+                   (file-name-absolute-p v)
+                   (equal (file-remote-p v)
+                          (file-remote-p default-directory))))))
 
 (defcustom magento-cache-clean-watch-query-on-exit nil
   "Whether to ask before killing a running watcher.

@@ -142,8 +142,9 @@ takes the Magento root and returns such a string, or nil to auto-detect:
 ** Directory local variables
 
 =magento-cache-clean-directory= is safe for use in =.dir-locals.el= when it is
-an absolute directory name (a relative one would be resolved against each
-file's own directory), and so is =magento-cache-clean-executable= when it
+an absolute directory name on the same host as the file (a relative one
+would be resolved against each file's own directory, and a remote one such
+as =/sudo::/= could run cache-clean as another user), and so is =magento-cache-clean-executable= when it
 is =auto= or one of the three names above:
 
 #+begin_src emacs-lisp
