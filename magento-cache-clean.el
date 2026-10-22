@@ -238,7 +238,8 @@ not a string or nil" other))))
 (defun magento-cache-clean--executable (root)
   "Return the name of the cache-clean executable for Magento ROOT.
 See `magento-cache-clean-executable'.  Signal a `user-error' when
-auto-detection finds none or the option has an invalid value."
+auto-detection finds none or the option has an invalid value, and an
+error when the option's function returns one."
   (or (magento-cache-clean--configured-executable root)
       (magento-cache-clean--auto-detect root)))
 
@@ -306,6 +307,7 @@ ROOT defaults as in `magento-cache-clean--watch-buffer'."
   "Value of `compilation-error-regexp-alist' in `magento-cache-clean-mode'.
 cache-clean output has no file:line locations by default, so this is
 empty.  Add entries to make parts of the output clickable."
+  ;; Not :safe, as an entry can name functions that run on the output.
   :type '(repeat (choice (symbol :tag "Predefined symbol")
                          (sexp :tag "Error specification"))))
 
