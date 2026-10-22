@@ -479,7 +479,10 @@ restarted."
           (setq-local exec-path path)
         (kill-local-variable 'exec-path))
       (setq magento-cache-clean--watch-args args)
-      ;; `comint-exec' would only delete a running watcher.
+      ;; `comint-exec' would only delete a running watcher, which leaves
+      ;; a remote one running.  A local one is killed by that deletion
+      ;; right after, before it handles the interrupt, so it can't rely
+      ;; on exiting cleanly.
       (magento-cache-clean--watch-interrupt)
       (goto-char (point-max))
       (let ((inhibit-read-only t))
