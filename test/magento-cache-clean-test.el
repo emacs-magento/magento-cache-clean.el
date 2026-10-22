@@ -737,7 +737,7 @@ root is configured."
           (should-not sent))))))
 
 (ert-deftest magento-cache-clean-test-watch-send-key-non-character ()
-  "An event that isn't a character, as from M-x, is a user error."
+  "An event that isn't a character, such as a function key, is a user error."
   (with-temp-buffer
     (magento-cache-clean-watch-mode)
     (let ((sent nil))
@@ -749,6 +749,25 @@ root is configured."
           (should-error (magento-cache-clean-watch-send-key)
                         :type 'user-error))
         (should-not sent)))))
+
+(ert-deftest magento-cache-clean-test-watch-send-key-by-name ()
+  "Run by name, the command reads the key rather than sending RET.
+Run from a key, prefixed or not, it sends that key."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (let ((sent nil))
+      (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-live-p) (lambda (_) t))
+                ((symbol-function 'process-send-string)
+                 (lambda (_ string) (push string sent))))
+        (save-window-excursion
+          (switch-to-buffer (current-buffer))
+          (execute-kbd-macro
+           (kbd "M-x magento-cache-clean-watch-send-key RET x"))
+          (execute-kbd-macro (kbd "c"))
+          (execute-kbd-macro (kbd "C-u 3 c"))
+          (execute-kbd-macro (kbd "RET"))))
+      (should (equal '("x" "c" "ccc" "\r") (nreverse sent))))))
 
 (ert-deftest magento-cache-clean-test-watch-truncates-buffer ()
   "Watch buffers are truncated, as a watcher can run for days."
