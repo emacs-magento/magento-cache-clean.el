@@ -494,7 +494,12 @@ when the configured root isn't a directory."
 Interactively, BUFFER is the watcher of the current Magento root, or
 else one of the running watchers read in the minibuffer."
   (interactive (list (magento-cache-clean--read-watch-buffer)))
-  (setq buffer (window-normalize-buffer buffer))
+  (setq buffer (or (get-buffer buffer)
+                   (user-error "No buffer named %s" buffer)))
+  (unless (provided-mode-derived-p
+           (buffer-local-value 'major-mode buffer)
+           'magento-cache-clean-watch-mode)
+    (user-error "%s is not a magento-cache-clean watch buffer" buffer))
   (let ((proc (get-buffer-process buffer)))
     (unless (process-live-p proc)
       (user-error "No watch process running in %s" buffer))

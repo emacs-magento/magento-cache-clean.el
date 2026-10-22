@@ -1180,8 +1180,23 @@ afterwards."
 (ert-deftest magento-cache-clean-test-stop-without-live-process ()
   "Stopping a buffer without a live watcher is a user error."
   (with-temp-buffer
+    (magento-cache-clean-watch-mode)
     (should-error (magento-cache-clean-watch-stop (current-buffer))
                   :type 'user-error)))
+
+(ert-deftest magento-cache-clean-test-stop-only-watch-buffers ()
+  "Stop refuses a missing buffer or another buffer's process."
+  (should-error (magento-cache-clean-watch-stop "*no such watch buffer*")
+                :type 'user-error)
+  (with-temp-buffer
+    (let ((proc (make-process :name "not-a-watcher" :buffer (current-buffer)
+                              :command '("sleep" "30"))))
+      (unwind-protect
+          (progn
+            (should-error (magento-cache-clean-watch-stop (current-buffer))
+                          :type 'user-error)
+            (should (process-live-p proc)))
+        (delete-process proc)))))
 
 (ert-deftest magento-cache-clean-test-stop-all ()
   "Stop all interrupts every running watcher."
