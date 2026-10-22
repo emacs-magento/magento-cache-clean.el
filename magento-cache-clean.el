@@ -455,15 +455,17 @@ else one of the running watchers read in the minibuffer."
   "Cache types of Magento Open Source, completed without an env.php.")
 
 (defun magento-cache-clean--env-cache-types (root)
-  "Return the cache types listed in Magento ROOT's app/etc/env.php, or nil."
+  "Return the cache types listed in Magento ROOT's app/etc/env.php, or nil.
+Return nil too when the list isn't closed, rather than reading the
+keys of the rest of the file as cache types."
   (with-temp-buffer
     (insert-file-contents (expand-file-name "app/etc/env.php" root))
-    (when (re-search-forward
-           (rx (in "'\"") "cache_types" (in "'\"") (* (in " \t\n")) "=>"
-               (* (in " \t\n")) (or "[" (seq "array" (* (in " \t")) "(")))
-           nil t)
-      (let ((end (save-excursion (re-search-forward (rx (in "])")) nil t)))
-            types)
+    (when-let* (((re-search-forward
+                  (rx (in "'\"") "cache_types" (in "'\"") (* (in " \t\n")) "=>"
+                      (* (in " \t\n")) (or "[" (seq "array" (* (in " \t")) "(")))
+                  nil t))
+                (end (save-excursion (re-search-forward (rx (in "])")) nil t))))
+      (let (types)
         (while (re-search-forward
                 (rx (in "'\"") (group (+ (not (in "'\"")))) (in "'\"")
                     (* (in " \t\n")) "=>")

@@ -340,6 +340,13 @@ value is visible."
                   nil (expand-file-name "app/etc/env.php" root))
     (should (equal '("layout") (magento-cache-clean--env-cache-types root)))))
 
+(ert-deftest magento-cache-clean-test-cache-types-unclosed ()
+  "An unclosed cache types list gives none, not the keys after it."
+  (magento-cache-clean-test--with-root root
+    (write-region "<?php\nreturn [\n    'cache_types' => [\n        'config' => 1,\n    'db' => 'x'\n"
+                  nil (expand-file-name "app/etc/env.php" root))
+    (should-not (magento-cache-clean--env-cache-types root))))
+
 (ert-deftest magento-cache-clean-test-cache-types-fallback ()
   "Without cache types in env.php, the core types are completed."
   (magento-cache-clean-test--with-root root
