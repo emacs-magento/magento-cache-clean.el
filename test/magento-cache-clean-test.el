@@ -216,6 +216,16 @@ also gets vendor/bin/cache-clean.js."
       (let ((magento-cache-clean-executable #'ignore))
         (should (equal "cache-clean" (magento-cache-clean--executable root)))))))
 
+(ert-deftest magento-cache-clean-test-executable-function-bad-result ()
+  "A function returning neither a string nor nil is an error."
+  (let ((magento-cache-clean-executable (lambda (_) 42)))
+    (should-not (eq 'user-error
+                    (car (should-error
+                          (magento-cache-clean--executable "/a/src/")))))
+    (should (string-search "returned 42"
+                           (magento-cache-clean--transient-executable
+                            "/a/src/")))))
+
 (ert-deftest magento-cache-clean-test-transient-executable ()
   "The menu shows the executable, marks auto and survives none found."
   (magento-cache-clean-test--with-root root

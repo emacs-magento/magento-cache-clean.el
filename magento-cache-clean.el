@@ -189,11 +189,14 @@ Signal a `user-error' when there is none."
   "Return the name of the cache-clean executable for Magento ROOT.
 See `magento-cache-clean-executable'.  Signal a `user-error' when
 auto-detection finds none."
-  (let ((exe magento-cache-clean-executable))
-    (or (cond ((stringp exe) exe)
-              ((and (not (eq exe 'auto)) (functionp exe))
-               (funcall exe root)))
-        (magento-cache-clean--auto-detect root))))
+  (let* ((exe magento-cache-clean-executable)
+         (name (cond ((stringp exe) exe)
+                     ((and (not (eq exe 'auto)) (functionp exe))
+                      (funcall exe root)))))
+    (cond ((null name) (magento-cache-clean--auto-detect root))
+          ((stringp name) name)
+          (t (error "`magento-cache-clean-executable' returned %S, \
+not a string or nil" name)))))
 
 (defun magento-cache-clean--program (name root)
   "Return the program to run for executable NAME and Magento ROOT.
