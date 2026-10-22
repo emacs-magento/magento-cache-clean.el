@@ -1478,6 +1478,26 @@ afterwards."
         (magento-cache-clean-test--wait buf)
         (kill-buffer buf)))))
 
+(ert-deftest magento-cache-clean-test-mode-hooks-see-root ()
+  "The output buffers' mode hooks see their root, not \\[compile]'s."
+  (magento-cache-clean-test--with-root root
+    (let* ((seen nil)
+           (record (lambda () (push (magento-cache-clean--output-root) seen)))
+           (compilation-directory temporary-file-directory)
+           (magento-cache-clean-compilation-mode-hook (list record))
+           (magento-cache-clean-watch-mode-hook (list record))
+           (magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (one-shot (magento-cache-clean))
+           (watch (magento-cache-clean-watch)))
+      (unwind-protect
+          (should (equal (list root root) seen))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer watch)
+          (kill-buffer one-shot))))))
+
 (ert-deftest magento-cache-clean-test-stop-by-buffer-name ()
   "Stop takes the watch buffer's name too."
   (magento-cache-clean-test--with-watchers (a)

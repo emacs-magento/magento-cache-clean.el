@@ -134,9 +134,14 @@ empty.  Add entries to make parts of the output clickable."
 (defun magento-cache-clean--output-root (&optional buffer)
   "Return the Magento root of cache-clean output BUFFER.
 BUFFER defaults to the current buffer.  The root is kept apart from
-`default-directory', which \\[cd] changes."
+`default-directory', which \\[cd] changes.  That is only used while the
+buffer's mode is set up, before the root is recorded, when it is still
+the root."
   (with-current-buffer (or buffer (current-buffer))
-    (or magento-cache-clean--watch-root compilation-directory default-directory)))
+    (or magento-cache-clean--watch-root
+        ;; `compile' sets its global value.
+        (and (local-variable-p 'compilation-directory) compilation-directory)
+        default-directory)))
 
 (defun magento-cache-clean--known-roots ()
   "Return the Magento roots that have a cache-clean buffer."
