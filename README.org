@@ -27,8 +27,12 @@ Emacs integration for [[https://github.com/mage-os/magento-cache-clean][mage-os/
 
 #+begin_src emacs-lisp
 (use-package magento-cache-clean
-  :vc (:url "https://github.com/emacs-magento/magento-cache-clean.el"))
+  :vc (:url "https://github.com/emacs-magento/magento-cache-clean.el"
+       :rev :newest))
 #+end_src
+
+Without =:rev :newest=, use-package installs the commit that last changed
+the =Version:= header instead of the latest one.
 
 ** Manual
 
