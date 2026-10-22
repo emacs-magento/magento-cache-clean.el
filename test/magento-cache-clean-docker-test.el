@@ -142,6 +142,14 @@ Wait until it watches."
     (should (equal "vendor/bin/cache-clean.js"
                    (magento-cache-clean--executable root)))))
 
+(ert-deftest magento-cache-clean-docker-test-home-executable ()
+  "A ~ executable is expanded in the remote user's home."
+  :tags '(docker)
+  (magento-cache-clean-docker-test--with-root root
+    (let ((magento-cache-clean-executable "~/bin/cache-clean"))
+      (should (equal "/root/bin/cache-clean"
+                     (car (magento-cache-clean--command root nil)))))))
+
 (ert-deftest magento-cache-clean-docker-test-cache-types ()
   "Cache types are completed from the remote env.php."
   :tags '(docker)

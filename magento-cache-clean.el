@@ -70,8 +70,8 @@ scripts are only used when node is found too.
 
 A string is a program name, looked up in variable `exec-path', or a
 file name.  A relative file name containing a slash is relative to the
-Magento root.  A file name starting with ~ is expanded on the local
-host, even for a remote root.
+Magento root.  A file name starting with ~ is expanded on the Magento
+root's host.
 
 A function is called with the Magento root and returns such a string,
 or nil to auto-detect.
@@ -181,9 +181,14 @@ Outside the transient this is its saved or default value."
 
 (defun magento-cache-clean--file (name root)
   "Return the file executable NAME names for Magento ROOT, or nil.
-A NAME containing a slash is a file name relative to ROOT; any other
-NAME is a program to look up in variable `exec-path'."
-  (and (string-search "/" name) (expand-file-name name root)))
+A NAME containing a slash is a file name relative to ROOT, with ~
+expanded on ROOT's host; any other NAME is a program to look up in
+variable `exec-path'."
+  (and (string-search "/" name)
+       (expand-file-name (if (string-prefix-p "~" name)
+                             (concat (file-remote-p root) name)
+                           name)
+                         root)))
 
 (defun magento-cache-clean--found-p (name root)
   "Return non-nil if executable NAME is found for Magento ROOT.

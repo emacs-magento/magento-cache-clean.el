@@ -125,6 +125,13 @@ Return its absolute path."
     (should (equal '("/var/www/vendor/bin/cache-clean.js" "-d" "/var/www/")
                    (magento-cache-clean--command "/ssh:host:/var/www/" nil)))))
 
+(ert-deftest magento-cache-clean-test-command-home-executable ()
+  "A ~ executable is expanded in the home of a local root's host.
+See the Docker tests for a remote root."
+  (let ((magento-cache-clean-executable "~/bin/cache-clean"))
+    (should (equal (expand-file-name "~/bin/cache-clean")
+                   (car (magento-cache-clean--command "/a/src/" nil))))))
+
 (ert-deftest magento-cache-clean-test-watch-relative-executable ()
   "Watch finds a relative executable from outside the root."
   (magento-cache-clean-test--with-root root
