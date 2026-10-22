@@ -104,6 +104,14 @@ Output buffers are named after the Magento root, so they can be placed with
                (window-height . 0.25)))
 #+end_src
 
+** Symlinked roots
+
+Watchers and output buffers belong to a root by its name, which isn't
+resolved, since that is slow on remote hosts.  A root reached through
+a symbolic link, such as both =/home/me/shop= and =/var/home/me/shop=,
+gets a watcher for each name.  Set =magento-cache-clean-directory= to
+one name to always use it.
+
 ** Remote watchers
 
 Killing a watch buffer, stopping a watcher or exiting Emacs interrupts

@@ -295,7 +295,8 @@ When WATCH is non-nil, return the watch buffer name."
 
 (defun magento-cache-clean--root-watch-buffer (root)
   "Return the watch buffer of Magento ROOT, or nil if there is none.
-It is found by its root rather than its name, which may have changed."
+It is found by its root rather than its name, which may have changed.
+Symbolic links in ROOT aren't resolved, as that is slow when remote."
   (car (match-buffers
         `(and (derived-mode . magento-cache-clean-watch-mode)
               ,(lambda (buf)
