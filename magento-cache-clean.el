@@ -469,15 +469,11 @@ restarted."
       ;; Before the mode's hooks run, which may look things up in it.
       ;; Unlike most variables, a mode change doesn't reset it.
       (setq default-directory root)
-      (unless (derived-mode-p 'magento-cache-clean-watch-mode)
-        (magento-cache-clean-watch-mode))
-      ;; Forget the values applied by a previous start, which
-      ;; .dir-locals.el may no longer set.
-      (dolist (elt dir-local-variables-alist)
-        (unless (memq (car elt) '(eval mode))
-          (kill-local-variable (car elt))))
-      (setq dir-local-variables-alist nil
-            file-local-variables-alist nil)
+      ;; Also on a restart, to forget the local values of the previous
+      ;; start, such as those .dir-locals.el no longer sets.
+      (magento-cache-clean-watch-mode)
+      ;; It survives the mode change, and would bring them back.
+      (setq file-local-variables-alist nil)
       ;; So that a restart or the menu opened from here use the root's
       ;; options, not the global ones.
       (hack-dir-local-variables-non-file-buffer)
