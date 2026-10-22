@@ -385,6 +385,8 @@ Interactively, N is the prefix argument, as for `self-insert-command'."
   "<remap> <self-insert-command>" #'magento-cache-clean-watch-send-key
   ;; Comint would send the line at point, typing its characters as hotkeys.
   "RET" #'magento-cache-clean-watch-send-key
+  ;; Comint would close the watcher's input, ending its hotkeys.
+  "C-d" #'undefined
   "C-c C-r" #'magento-cache-clean-watch-restart)
 
 (defun magento-cache-clean--watch-interrupt ()
