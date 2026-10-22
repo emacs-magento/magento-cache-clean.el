@@ -4,7 +4,7 @@
 
 ;; Author: Piotr Kwiecinski <piotr.kwiecinski@codemanufacture.com>
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "30.1"))
+;; Package-Requires: ((emacs "30.1") (transient "0.7.2"))
 ;; Keywords: tools, processes
 ;; URL: https://github.com/emacs-magento/magento-cache-clean.el
 
