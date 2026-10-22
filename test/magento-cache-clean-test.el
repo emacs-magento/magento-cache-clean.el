@@ -853,6 +853,27 @@ Run from a key, prefixed or not, it sends that key."
                        (buffer-string)))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-one-shot-program-from-exec-path ()
+  "One-shot runs a program found in `exec-path' that PATH lacks."
+  (magento-cache-clean-test--with-root root
+    (let* ((bin (expand-file-name "fake-bin/" root))
+           (exec-path (list bin))
+           (process-environment (cons "PATH=/usr/bin:/bin" process-environment))
+           (magento-cache-clean-executable "cache-clean")
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf nil))
+      (make-directory bin)
+      (rename-file (magento-cache-clean-test--fake-executable root "echo from-exec-path")
+                   (expand-file-name "cache-clean" bin))
+      (unwind-protect
+          (progn
+            (setq buf (magento-cache-clean))
+            (magento-cache-clean-test--wait buf)
+            (should (string-search "from-exec-path"
+                                   (with-current-buffer buf (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-runs-with-caller-env ()
   "Watch gets the caller's environment and exec-path on first start."
   (magento-cache-clean-test--with-root root
