@@ -1081,13 +1081,12 @@ afterwards."
                  (magento-cache-clean-watch))
                (magento-cache-clean-test--with-watchers ,(cdr roots)
                  ,@body))
-           (when-let* ((buf (get-buffer (magento-cache-clean--buffer-name
-                                         ,(car roots) t))))
+           (when-let* ((buf (magento-cache-clean--root-watch-buffer ,(car roots))))
              (kill-buffer buf)))))))
 
 (defun magento-cache-clean-test--watch-buffer (root)
   "Return the watch buffer of ROOT."
-  (get-buffer (magento-cache-clean--buffer-name root t)))
+  (magento-cache-clean--root-watch-buffer root))
 
 (ert-deftest magento-cache-clean-test-watchers-per-root ()
   "Each root gets its own watcher, named after its buffer."
@@ -1117,6 +1116,20 @@ afterwards."
         (should (eq buf-a (magento-cache-clean--watch-buffer a)))))
     (let ((default-directory temporary-file-directory))
       (should-not (magento-cache-clean--watch-buffer)))))
+
+(ert-deftest magento-cache-clean-test-watch-buffer-renamed ()
+  "A renamed watch buffer is still its root's, and a restart reuses it."
+  (magento-cache-clean-test--with-watchers (a)
+    (let ((buf (magento-cache-clean-test--watch-buffer a)))
+      (with-current-buffer buf
+        (rename-buffer "my watcher"))
+      (should (eq (get-buffer-process buf)
+                  (magento-cache-clean--watch-process a)))
+      (let ((default-directory a))
+        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+          (should (eq buf (magento-cache-clean-watch)))))
+      (should (process-live-p (get-buffer-process buf)))
+      (should-not (get-buffer (magento-cache-clean--buffer-name a t))))))
 
 (ert-deftest magento-cache-clean-test-stop-by-buffer-name ()
   "Stop takes the watch buffer's name too."
