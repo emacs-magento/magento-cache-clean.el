@@ -1201,7 +1201,8 @@ afterwards."
 (ert-deftest magento-cache-clean-test-stop-all ()
   "Stop all interrupts every running watcher."
   (magento-cache-clean-test--with-watchers (a b)
-    (magento-cache-clean-watch-stop-all)
+    (should (equal "Interrupted 2 magento-cache-clean watchers"
+                   (magento-cache-clean-watch-stop-all)))
     (dolist (root (list a b))
       (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer root)))
     (should-not (magento-cache-clean--watch-buffers))))
@@ -1220,7 +1221,8 @@ afterwards."
                      (push proc interrupted)
                      (apply orig proc args))))
                 (inhibit-message t))
-        (should (string-search "1 failed" (magento-cache-clean-watch-stop-all))))
+        (should (equal "Interrupted 1 magento-cache-clean watcher; 1 failed, see *Messages*"
+                       (magento-cache-clean-watch-stop-all))))
       (should (equal (list (get-buffer-process (cadr buffers))) interrupted)))))
 
 (ert-deftest magento-cache-clean-test-read-root-offers-known-roots ()

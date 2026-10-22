@@ -504,7 +504,7 @@ else one of the running watchers read in the minibuffer."
     (unless (process-live-p proc)
       (user-error "No watch process running in %s" buffer))
     (interrupt-process proc))
-  (message "magento-cache-clean watch stopped in %s"
+  (message "Interrupted the magento-cache-clean watcher in %s"
            (abbreviate-file-name (buffer-local-value 'default-directory buffer))))
 
 ;;;###autoload
@@ -522,13 +522,14 @@ lost, doesn't keep the others running."
           (interrupt-process (get-buffer-process buf))
         (error
          (setq failed (1+ failed))
-         (message "Error stopping watcher in %s: %s"
+         (message "Error interrupting the watcher in %s: %s"
                   (buffer-name buf) (error-message-string err)))))
-    (message "Stopped %d magento-cache-clean watcher%s%s"
-             (- (length buffers) failed) (if (cdr buffers) "s" "")
-             (if (> failed 0)
-                 (format "; %d failed, see *Messages*" failed)
-               ""))))
+    (let ((interrupted (- (length buffers) failed)))
+      (message "Interrupted %d magento-cache-clean watcher%s%s"
+               interrupted (if (= interrupted 1) "" "s")
+               (if (> failed 0)
+                   (format "; %d failed, see *Messages*" failed)
+                 "")))))
 
 ;;; Transient
 
