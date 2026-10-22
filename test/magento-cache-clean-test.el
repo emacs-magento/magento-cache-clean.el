@@ -1615,9 +1615,12 @@ That is slow when remote, and the command looks it up anyway."
                   :type 'user-error)))
 
 (ert-deftest magento-cache-clean-test-stop-only-watch-buffers ()
-  "Stop refuses a missing buffer or another buffer's process."
+  "Stop refuses a missing or killed buffer, or another buffer's process."
   (should-error (magento-cache-clean-watch-stop "*no such watch buffer*")
                 :type 'user-error)
+  (let ((killed (generate-new-buffer "killed")))
+    (kill-buffer killed)
+    (should-error (magento-cache-clean-watch-stop killed) :type 'user-error))
   (with-temp-buffer
     (let ((proc (make-process :name "not-a-watcher" :buffer (current-buffer)
                               :command '("sleep" "30"))))
