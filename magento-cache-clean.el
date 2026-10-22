@@ -384,15 +384,14 @@ This is the watcher of the current Magento root when there is one.
 Otherwise, read one of the running watchers in the minibuffer."
   (if-let* ((proc (magento-cache-clean--watch-process)))
       (process-buffer proc)
-    (let ((watchers (mapcar (lambda (buf)
-                              (cons (buffer-local-value 'default-directory buf)
-                                    buf))
-                            (magento-cache-clean--watch-buffers))))
+    (let ((watchers (magento-cache-clean--watch-buffers)))
       (unless watchers
         (user-error "No watch process running"))
-      (cdr (assoc (completing-read "Stop watcher: " watchers nil t nil nil
-                                   (caar watchers))
-                  watchers)))))
+      (get-buffer
+       (read-buffer "Stop watcher: " (car watchers) t
+                    (lambda (name)
+                      (memq (get-buffer (if (consp name) (car name) name))
+                            watchers)))))))
 
 ;;;###autoload
 (defun magento-cache-clean-watch-stop (buffer)
