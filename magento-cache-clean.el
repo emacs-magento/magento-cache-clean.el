@@ -238,6 +238,13 @@ the current buffer's root, in that order."
          (proc (and buf (get-buffer-process buf))))
     (and (process-live-p proc) proc)))
 
+;; Tramp passes the variables that differ from the global environment
+;; to the remote host, so a local buffer's environment must not follow
+;; a remote root, or vice versa.
+(defun magento-cache-clean--same-host-p (root)
+  "Return non-nil if Magento ROOT is on the current buffer's host."
+  (equal (file-remote-p root) (file-remote-p default-directory)))
+
 ;;; Modes
 
 (defvar magento-cache-clean-error-regexp-alist nil
@@ -278,10 +285,11 @@ handles them as hotkeys; see the cache-clean README for the list.
 
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
-The process inherits the current buffer's environment and variable
-`exec-path'.  Any watcher already running for ROOT is restarted."
-  (let ((env process-environment)
-        (path exec-path)
+When ROOT is on the current buffer's host, the process inherits the
+current buffer's environment and variable `exec-path'.  Any watcher
+already running for ROOT is restarted."
+  (let ((env (and (magento-cache-clean--same-host-p root)
+                  (cons process-environment exec-path)))
         (buf (get-buffer-create (magento-cache-clean--buffer-name root t)))
         (command (magento-cache-clean--command root (cons "--watch" args))))
     (with-current-buffer buf
@@ -289,8 +297,11 @@ The process inherits the current buffer's environment and variable
         (magento-cache-clean-watch-mode))
       ;; Set after the mode change, which kills local variables.
       (setq default-directory root)
-      (setq-local process-environment env
-                  exec-path path)
+      (if env
+          (setq-local process-environment (car env)
+                      exec-path (cdr env))
+        (kill-local-variable 'process-environment)
+        (kill-local-variable 'exec-path))
       (setq magento-cache-clean--watch-args args)
       (goto-char (point-max))
       (insert (propertize (concat "$ " (combine-and-quote-strings command) "\n")
@@ -312,9 +323,14 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
          (command (mapconcat #'shell-quote-argument
                              (magento-cache-clean--command root args)
                              " "))
-         ;; `compilation-start' inherits this buffer's environment.
-         (default-directory root))
-    (compilation-start command #'magento-cache-clean-mode (lambda (_) name))))
+         (start (lambda ()
+                  (let ((default-directory root))
+                    (compilation-start command #'magento-cache-clean-mode
+                                       (lambda (_) name))))))
+    ;; `compilation-start' inherits the current buffer's environment.
+    (if (magento-cache-clean--same-host-p root)
+        (funcall start)
+      (with-temp-buffer (funcall start)))))
 
 ;;;###autoload
 (defun magento-cache-clean-watch (&optional args)

@@ -372,6 +372,56 @@ also gets vendor/bin/cache-clean.js."
                        (buffer-string)))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-same-host ()
+  "Roots are on the same host when both are local or on the same remote."
+  (let ((default-directory "/a/"))
+    (should (magento-cache-clean--same-host-p "/b/"))
+    (should-not (magento-cache-clean--same-host-p "/ssh:host:/b/")))
+  (let ((default-directory "/ssh:host:/a/"))
+    (should (magento-cache-clean--same-host-p "/ssh:host:/b/"))
+    (should-not (magento-cache-clean--same-host-p "/b/"))))
+
+(ert-deftest magento-cache-clean-test-one-shot-other-host-skips-caller-env ()
+  "A root on another host doesn't get the caller's environment."
+  (let ((magento-cache-clean-executable "cache-clean")
+        (local-env 'unset))
+    (cl-letf (((symbol-function 'magento-cache-clean--buffer-name)
+               (lambda (&rest _) "*magento-cache-clean-test*"))
+              ((symbol-function 'compilation-start)
+               (lambda (&rest _)
+                 (setq local-env (local-variable-p 'process-environment)))))
+      (with-temp-buffer
+        (setq default-directory temporary-file-directory)
+        (setq-local process-environment
+                    (cons "FOO=from-caller" process-environment))
+        (let ((magento-cache-clean-directory "/ssh:host:/var/www/"))
+          (magento-cache-clean nil)
+          (should-not local-env))
+        (let ((magento-cache-clean-directory temporary-file-directory))
+          (magento-cache-clean nil)
+          (should local-env))))))
+
+(ert-deftest magento-cache-clean-test-watch-other-host-skips-caller-env ()
+  "A watcher on another host doesn't get the caller's environment."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable
+           (magento-cache-clean-test--fake-executable root "echo \"FOO=$FOO.\""))
+          (magento-cache-clean-directory nil)
+          (buf nil))
+      (unwind-protect
+          (with-temp-buffer
+            (setq default-directory root)
+            (setq-local process-environment
+                        (cons "FOO=from-caller" process-environment))
+            (cl-letf (((symbol-function 'magento-cache-clean--same-host-p)
+                       #'ignore))
+              (setq buf (magento-cache-clean-watch)))
+            (magento-cache-clean-test--wait buf)
+            (with-current-buffer buf
+              (should-not (local-variable-p 'process-environment))
+              (should (string-search "FOO=." (buffer-string)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-shows-command ()
   "The watch buffer starts with the command line it runs."
   (magento-cache-clean-test--with-root root
