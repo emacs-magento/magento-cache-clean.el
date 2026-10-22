@@ -366,7 +366,8 @@ Interactively, N is the prefix argument, as for `self-insert-command'."
 Return non-nil if it was interrupted.
 Deleting the process, as `comint-exec' and `kill-buffer' do, only ends
 Tramp's local end of a remote watcher, while interrupting it reaches
-the remote host."
+the remote host.  That waits for the host, so it hangs as long as a
+lost connection does."
   (when-let* ((proc (get-buffer-process (current-buffer)))
               ((process-live-p proc)))
     ;; An error, such as a lost connection, would keep the buffer from
