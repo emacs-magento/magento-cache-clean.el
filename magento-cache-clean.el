@@ -413,10 +413,11 @@ Otherwise, read one of the running watchers in the minibuffer."
 
 ;;;###autoload
 (defun magento-cache-clean-watch-stop (buffer)
-  "Stop the watcher running in watch BUFFER.
+  "Stop the watcher running in watch BUFFER, a buffer or its name.
 Interactively, BUFFER is the watcher of the current Magento root, or
 else one of the running watchers read in the minibuffer."
   (interactive (list (magento-cache-clean--read-watch-buffer)))
+  (setq buffer (window-normalize-buffer buffer))
   (let ((proc (get-buffer-process buffer)))
     (unless (process-live-p proc)
       (user-error "No watch process running in %s" buffer))

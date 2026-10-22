@@ -784,6 +784,14 @@ afterwards."
           (should (equal (buffer-name buf)
                          (process-name (get-buffer-process buf)))))))))
 
+(ert-deftest magento-cache-clean-test-stop-by-buffer-name ()
+  "Stop takes the watch buffer's name too."
+  (magento-cache-clean-test--with-watchers (a)
+    (let ((buf (magento-cache-clean-test--watch-buffer a)))
+      (magento-cache-clean-watch-stop (buffer-name buf))
+      (magento-cache-clean-test--wait buf)
+      (should-not (get-buffer-process buf)))))
+
 (ert-deftest magento-cache-clean-test-stop-uses-current-root ()
   "Inside a watched root, stop acts on its watcher without asking."
   (magento-cache-clean-test--with-watchers (a b)
