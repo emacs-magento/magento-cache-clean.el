@@ -527,6 +527,15 @@ also gets vendor/bin/cache-clean.js."
             (should (process-live-p proc)))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-watch-not-found-leaves-no-buffer ()
+  "A watcher that can't start because nothing is found leaves no buffer."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root nil nil
+      (let ((default-directory root)
+            (magento-cache-clean-directory nil))
+        (should-error (magento-cache-clean-watch) :type 'user-error)
+        (should-not (get-buffer (magento-cache-clean--buffer-name root t)))))))
+
 (ert-deftest magento-cache-clean-test-watch-send-key ()
   "A forwarded key reaches the process unchanged."
   (magento-cache-clean-test--with-root root

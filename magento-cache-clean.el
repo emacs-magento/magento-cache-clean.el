@@ -302,10 +302,11 @@ handles them as hotkeys; see the cache-clean README for the list.
 When ROOT is on the current buffer's host, the process inherits the
 current buffer's environment and variable `exec-path'.  Any watcher
 already running for ROOT is restarted."
-  (let ((env (and (magento-cache-clean--same-host-p root)
-                  (cons process-environment exec-path)))
-        (buf (get-buffer-create (magento-cache-clean--buffer-name root t)))
-        (command (magento-cache-clean--command root (cons "--watch" args))))
+  (let* ((env (and (magento-cache-clean--same-host-p root)
+                   (cons process-environment exec-path)))
+         ;; Before creating the buffer, as no executable may be found.
+         (command (magento-cache-clean--command root (cons "--watch" args)))
+         (buf (get-buffer-create (magento-cache-clean--buffer-name root t))))
     (with-current-buffer buf
       (unless (derived-mode-p 'magento-cache-clean-watch-mode)
         (magento-cache-clean-watch-mode))
