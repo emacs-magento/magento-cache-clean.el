@@ -499,12 +499,13 @@ restarted."
                                           command root)
                                     "\n")
                             'font-lock-face 'comint-highlight-input)))
-      ;; A configured executable isn't checked, so it may not be found.
-      ;; Don't leave a new buffer without a process, and tell why in one
-      ;; whose watcher was just stopped.
+      ;; A configured executable isn't checked, so it may not be found,
+      ;; and connecting to a remote root may be quit.  Don't leave a new
+      ;; buffer without a process, and tell why in one whose watcher was
+      ;; just stopped.
       (condition-case err
           (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
-        (error
+        ((error quit)
          (if old-buf
              (let ((inhibit-read-only t))
                (insert (error-message-string err) "\n"))
