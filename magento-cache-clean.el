@@ -572,8 +572,15 @@ Return the output buffer."
   (interactive (list (magento-cache-clean--arguments)))
   (let* ((root (magento-cache-clean--directory))
          (name (magento-cache-clean--buffer-name root))
+         (command (magento-cache-clean--command root args))
+         ;; The shell looks a program name up in PATH, which may lack
+         ;; what variable `exec-path' has, where it was found.  Looking
+         ;; it up again is only quick on a local root.
+         (program (and (not (file-remote-p root))
+                       (not (string-search "/" (car command)))
+                       (executable-find (car command))))
          (command (magento-cache-clean--shell-command
-                   (magento-cache-clean--command root args) root))
+                   (if program (cons program (cdr command)) command) root))
          (start (lambda ()
                   (let ((default-directory root))
                     (compilation-start command #'magento-cache-clean-compilation-mode
