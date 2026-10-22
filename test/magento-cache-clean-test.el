@@ -538,6 +538,22 @@ The menu opened from it must find the same executable as from a file."
           (magento-cache-clean-watch-send-key))
         (should (equal "c" sent))))))
 
+(ert-deftest magento-cache-clean-test-watch-send-key-non-positive ()
+  "A zero prefix argument sends nothing and a negative one is refused."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (let ((sent nil))
+      (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-send-string)
+                 (lambda (_ string) (setq sent string))))
+        (let ((last-command-event ?c))
+          (magento-cache-clean-watch-send-key 0)
+          (should (equal "" sent))
+          (setq sent nil)
+          (should-error (magento-cache-clean-watch-send-key -1)
+                        :type 'user-error)
+          (should-not sent))))))
+
 (ert-deftest magento-cache-clean-test-watch-truncates-buffer ()
   "Watch buffers are truncated, as a watcher can run for days."
   (with-temp-buffer
