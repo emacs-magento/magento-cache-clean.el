@@ -70,7 +70,8 @@ scripts are only used when node is found too.
 
 A string is a program name, looked up in variable `exec-path', or a
 file name.  A relative file name containing a slash is relative to the
-Magento root.
+Magento root.  A file name starting with ~ is expanded on the local
+host, even for a remote root.
 
 A function is called with the Magento root and returns such a string,
 or nil to auto-detect.
