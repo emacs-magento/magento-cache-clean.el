@@ -104,6 +104,14 @@ When non-nil, exiting Emacs or killing a watch buffer asks first.
 The value takes effect for watchers started afterwards."
   :type 'boolean)
 
+(defcustom magento-cache-clean-error-regexp-alist nil
+  "Value of `compilation-error-regexp-alist' in `magento-cache-clean-mode'.
+cache-clean output has no file:line locations by default, so this is
+empty.  Add entries to make parts of the output clickable."
+  ;; Not :safe, as an entry can name functions that run on the output.
+  :type '(repeat (choice (symbol :tag "Predefined symbol")
+                         (sexp :tag "Error specification"))))
+
 ;;; Directory detection
 
 (defun magento-cache-clean--known-roots ()
@@ -311,14 +319,6 @@ ROOT defaults as in `magento-cache-clean--watch-buffer'."
   (equal (file-remote-p root) (file-remote-p default-directory)))
 
 ;;; Modes
-
-(defcustom magento-cache-clean-error-regexp-alist nil
-  "Value of `compilation-error-regexp-alist' in `magento-cache-clean-mode'.
-cache-clean output has no file:line locations by default, so this is
-empty.  Add entries to make parts of the output clickable."
-  ;; Not :safe, as an entry can name functions that run on the output.
-  :type '(repeat (choice (symbol :tag "Predefined symbol")
-                         (sexp :tag "Error specification"))))
 
 (define-compilation-mode magento-cache-clean-mode "MagentoCacheClean"
   "Major mode for one-shot magento-cache-clean output."
