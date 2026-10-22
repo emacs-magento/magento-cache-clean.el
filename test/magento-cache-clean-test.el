@@ -630,6 +630,18 @@ return [
     (magento-cache-clean-watch-mode)
     (should (memq #'comint-truncate-buffer comint-output-filter-functions))))
 
+(ert-deftest magento-cache-clean-test-watch-ignores-password-prompts ()
+  "Output looking like a password prompt doesn't read a password."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (let ((read nil))
+      (cl-letf (((symbol-function 'run-at-time)
+                 (lambda (&rest _) (setq read t)))
+                ((symbol-function 'send-invisible)
+                 (lambda (&rest _) (setq read t))))
+        (comint-watch-for-password-prompt "Password: ")
+        (should-not read)))))
+
 ;;; Processes
 
 (ert-deftest magento-cache-clean-test-one-shot-runs-with-caller-env ()
