@@ -226,6 +226,7 @@ Return nil when it is to be auto-detected.  See
 has an invalid value."
   (pcase magento-cache-clean-executable
     ('auto nil)
+    ("" (user-error "`magento-cache-clean-executable' is empty"))
     ((and (pred stringp) name) name)
     ((and (pred functionp) fn)
      (pcase (funcall fn root)
