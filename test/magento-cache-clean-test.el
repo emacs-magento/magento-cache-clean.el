@@ -355,6 +355,21 @@ also gets vendor/bin/cache-clean.js."
     (should (eq 'magento-cache-clean-watch-restart (key-binding (kbd "C-c C-r"))))
     (should (eq 'find-file (key-binding (kbd "C-x C-f"))))))
 
+(ert-deftest magento-cache-clean-test-watch-ret-sends-only-return ()
+  "RET on an old output line doesn't send that line as hotkeys."
+  (with-temp-buffer
+    (magento-cache-clean-watch-mode)
+    (should (eq 'magento-cache-clean-watch-send-key (key-binding (kbd "RET"))))
+    (let ((sent nil))
+      (cl-letf (((symbol-function 'get-buffer-process) (lambda (_) 'proc))
+                ((symbol-function 'process-send-string)
+                 (lambda (_ string) (setq sent string))))
+        (insert "Cleaned layout cache\n")
+        (goto-char (point-min))
+        (let ((last-command-event ?\r))
+          (call-interactively (key-binding (kbd "RET")))))
+      (should (equal "\r" sent)))))
+
 ;;; Processes
 
 (ert-deftest magento-cache-clean-test-one-shot-runs-with-caller-env ()

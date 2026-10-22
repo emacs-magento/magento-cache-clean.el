@@ -278,6 +278,8 @@ cache-clean reads stdin in raw mode and handles the key itself."
   :doc "Keymap for `magento-cache-clean-watch-mode'."
   :parent comint-mode-map
   "<remap> <self-insert-command>" #'magento-cache-clean-watch-send-key
+  ;; Comint would send the line at point, typing its characters as hotkeys.
+  "RET" #'magento-cache-clean-watch-send-key
   "C-c C-r" #'magento-cache-clean-watch-restart)
 
 (defun magento-cache-clean--watch-revert (_ignore-auto _noconfirm)
