@@ -605,7 +605,7 @@ lost, doesn't keep the others running."
     "config_webservice" "translate")
   "Cache types of Magento Open Source, completed without an env.php.")
 
-(defconst magento-cache-clean--php-syntax-table
+(defvar magento-cache-clean--php-syntax-table
   (let ((table (make-syntax-table)))
     (modify-syntax-entry ?/ ". 124b" table)
     (modify-syntax-entry ?* ". 23" table)
