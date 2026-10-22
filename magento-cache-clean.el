@@ -324,6 +324,15 @@ cache-clean reads stdin in raw mode and handles the key itself."
   "RET" #'magento-cache-clean-watch-send-key
   "C-c C-r" #'magento-cache-clean-watch-restart)
 
+(defun magento-cache-clean--watch-interrupt ()
+  "Interrupt the watcher running in the current buffer, if any.
+Deleting the process, as `comint-exec' and `kill-buffer' do, only ends
+Tramp's local end of a remote watcher, while interrupting it reaches
+the remote host."
+  (when-let* ((proc (get-buffer-process (current-buffer)))
+              ((process-live-p proc)))
+    (interrupt-process proc)))
+
 (defun magento-cache-clean--watch-revert (_ignore-auto _noconfirm)
   "Restart the watcher, as `revert-buffer-function' of watch buffers."
   (magento-cache-clean-watch-restart))
@@ -339,6 +348,7 @@ The buffer is truncated to `comint-buffer-maximum-size' lines.
 
 \\{magento-cache-clean-watch-mode-map}"
   (setq-local revert-buffer-function #'magento-cache-clean--watch-revert)
+  (add-hook 'kill-buffer-hook #'magento-cache-clean--watch-interrupt nil t)
   (add-hook 'comint-output-filter-functions #'comint-truncate-buffer nil t))
 
 (defun magento-cache-clean--watch-start (root args)
@@ -369,10 +379,11 @@ restarted."
           (setq-local exec-path path)
         (kill-local-variable 'exec-path))
       (setq magento-cache-clean--watch-args args)
+      ;; `comint-exec' would only delete a running watcher.
+      (magento-cache-clean--watch-interrupt)
       (goto-char (point-max))
       (insert (propertize (concat "$ " (combine-and-quote-strings command) "\n")
                           'font-lock-face 'comint-highlight-input))
-      ;; `comint-exec' deletes any process still running in BUF.
       (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
       (set-process-query-on-exit-flag (get-buffer-process buf)
                                       magento-cache-clean-watch-query-on-exit))

@@ -755,6 +755,51 @@ either, so later changes to the global values reach restarts."
               (should-not (process-live-p first))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(defmacro magento-cache-clean-test--recording-interrupts (var &rest body)
+  "Run BODY, pushing each process `interrupt-process' gets onto VAR."
+  (declare (indent 1))
+  (let ((orig (make-symbol "orig")))
+    `(let ((,orig (symbol-function 'interrupt-process)))
+       (cl-letf (((symbol-function 'interrupt-process)
+                  (lambda (proc &rest args)
+                    (push proc ,var)
+                    (apply ,orig proc args))))
+         ,@body))))
+
+(ert-deftest magento-cache-clean-test-watch-restart-interrupts-old-process ()
+  "Restarting interrupts the old watcher rather than only deleting it.
+Deleting a remote process leaves the watcher running on its host."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch))
+           (first (get-buffer-process buf))
+           (interrupted nil))
+      (unwind-protect
+          (magento-cache-clean-test--recording-interrupts interrupted
+            (with-current-buffer buf
+              (magento-cache-clean-watch-restart))
+            (should (equal (list first) interrupted)))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-kill-buffer-interrupts-process ()
+  "Killing a watch buffer interrupts its watcher."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean-watch))
+           (proc (get-buffer-process buf))
+           (interrupted nil))
+      (magento-cache-clean-test--recording-interrupts interrupted
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf)))
+      (should (equal (list proc) interrupted)))))
+
 (ert-deftest magento-cache-clean-test-watch-declined-restart-keeps-process ()
   "Declining the restart prompt keeps and shows the running watcher."
   (magento-cache-clean-test--with-root root
