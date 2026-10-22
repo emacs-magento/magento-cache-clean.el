@@ -435,12 +435,45 @@ else one of the running watchers read in the minibuffer."
   :argument-regexp "\\`--\\(verbose\\|debug\\|silent\\)\\'"
   :choices '("verbose" "debug" "silent"))
 
+(defconst magento-cache-clean--core-cache-types
+  '("config" "layout" "block_html" "collections" "reflection" "db_ddl"
+    "compiled_config" "eav" "customer_notification" "config_integration"
+    "config_integration_api" "graphql_query_resolver_result" "full_page"
+    "config_webservice" "translate")
+  "Cache types of Magento Open Source, completed without an env.php.")
+
+(defun magento-cache-clean--env-cache-types (root)
+  "Return the cache types listed in Magento ROOT's app/etc/env.php, or nil."
+  (with-temp-buffer
+    (insert-file-contents (expand-file-name "app/etc/env.php" root))
+    (when (re-search-forward
+           (rx (in "'\"") "cache_types" (in "'\"") (* (in " \t\n")) "=>"
+               (* (in " \t\n")) (or "[" (seq "array" (* (in " \t")) "(")))
+           nil t)
+      (let ((end (save-excursion (re-search-forward (rx (in "])")) nil t)))
+            types)
+        (while (re-search-forward
+                (rx (in "'\"") (group (+ (not (in "'\"")))) (in "'\"")
+                    (* (in " \t\n")) "=>")
+                end t)
+          (push (match-string 1) types))
+        (nreverse types)))))
+
+(defun magento-cache-clean--cache-types ()
+  "Return the cache types to complete in `magento-cache-clean-transient'.
+They are read from the menu root's env.php, falling back to the core
+types.  Other names can still be entered, since cache-clean takes any."
+  (or (ignore-errors
+        (magento-cache-clean--env-cache-types (plist-get (transient-scope) :root)))
+      magento-cache-clean--core-cache-types))
+
 (transient-define-infix magento-cache-clean--infix-cache-types ()
   :class 'transient-option
   :key "-t"
   :description "Cache types"
   :argument "--types="
-  :multi-value 'repeat)
+  :multi-value 'repeat
+  :choices #'magento-cache-clean--cache-types)
 
 (defun magento-cache-clean--transient-scope (root)
   "Return the scope of `magento-cache-clean-transient' for Magento ROOT.

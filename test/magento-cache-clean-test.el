@@ -299,6 +299,35 @@ also gets vendor/bin/cache-clean.js."
     (should-error (magento-cache-clean--executable "/a/src/")
                   :type 'user-error)))
 
+;;; Cache types
+
+(ert-deftest magento-cache-clean-test-cache-types-from-env ()
+  "Cache types are completed from env.php, in its order."
+  (magento-cache-clean-test--with-root root
+    (write-region "<?php\nreturn [\n    'cache_types' => [\n        'config' => 1,\n        'my_custom' => 0\n    ],\n    'other' => ['x' => 1]\n];\n"
+                  nil (expand-file-name "app/etc/env.php" root))
+    (cl-letf (((symbol-function 'transient-scope) (lambda () (list :root root))))
+      (should (equal '("config" "my_custom")
+                     (magento-cache-clean--cache-types))))))
+
+(ert-deftest magento-cache-clean-test-cache-types-old-array-syntax ()
+  "Cache types are read from an array() style env.php too."
+  (magento-cache-clean-test--with-root root
+    (write-region "<?php\nreturn array(\n  \"cache_types\" => array (\n    \"layout\" => 1,\n  ),\n);\n"
+                  nil (expand-file-name "app/etc/env.php" root))
+    (should (equal '("layout") (magento-cache-clean--env-cache-types root)))))
+
+(ert-deftest magento-cache-clean-test-cache-types-fallback ()
+  "Without cache types in env.php, the core types are completed."
+  (magento-cache-clean-test--with-root root
+    (cl-letf (((symbol-function 'transient-scope) (lambda () (list :root root))))
+      (should (equal magento-cache-clean--core-cache-types
+                     (magento-cache-clean--cache-types)))))
+  (cl-letf (((symbol-function 'transient-scope)
+             (lambda () '(:root "/no/such/root/"))))
+    (should (equal magento-cache-clean--core-cache-types
+                   (magento-cache-clean--cache-types)))))
+
 ;;; Directory detection
 
 (ert-deftest magento-cache-clean-test-detect-directory-found ()
