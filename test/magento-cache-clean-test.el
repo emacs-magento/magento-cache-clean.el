@@ -229,6 +229,13 @@ also gets vendor/bin/cache-clean.js."
         (should (equal "not found"
                        (magento-cache-clean--transient-executable root)))))))
 
+(ert-deftest magento-cache-clean-test-transient-scope ()
+  "The menu scope has the root and the executable, described once."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean") nil
+      (should (equal (list :root root :executable "cache-clean (auto)")
+                     (magento-cache-clean--transient-scope root))))))
+
 ;;; Directory detection
 
 (ert-deftest magento-cache-clean-test-detect-directory-found ()
@@ -262,7 +269,7 @@ also gets vendor/bin/cache-clean.js."
   "Commands run from the menu use the root it was opened with."
   (let ((transient-current-command 'magento-cache-clean-transient)
         (magento-cache-clean-directory "/elsewhere/"))
-    (cl-letf (((symbol-function 'transient-scope) (lambda () "/menu/root/")))
+    (cl-letf (((symbol-function 'transient-scope) (lambda () '(:root "/menu/root/"))))
       (should (equal "/menu/root/" (magento-cache-clean--directory))))))
 
 (ert-deftest magento-cache-clean-test-directory-uses-custom ()
