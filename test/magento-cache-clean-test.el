@@ -341,6 +341,26 @@ The menu opened from it must find the same executable as from a file."
           (let ((kill-buffer-query-functions nil))
             (kill-buffer buf)))))))
 
+(ert-deftest magento-cache-clean-test-watch-restart-drops-removed-dir-locals ()
+  "A value removed from .dir-locals.el is gone after a restart."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root '("cache-clean" "node") t
+      (magento-cache-clean-test--write-dir-locals root "cache-clean")
+      (let* ((enable-local-variables :safe)
+             (dir-locals-directory-cache nil)
+             (buf (magento-cache-clean--watch-start root nil)))
+        (unwind-protect
+            (with-current-buffer buf
+              (should (local-variable-p 'magento-cache-clean-executable))
+              (write-region "()\n" nil (expand-file-name ".dir-locals.el" root))
+              (setq dir-locals-directory-cache nil)
+              (magento-cache-clean-watch-restart)
+              (should-not (local-variable-p 'magento-cache-clean-executable))
+              (should (equal (expand-file-name "vendor/bin/cache-clean.js" root)
+                             (car (magento-cache-clean--command root nil)))))
+          (let ((kill-buffer-query-functions nil))
+            (kill-buffer buf)))))))
+
 (ert-deftest magento-cache-clean-test-command-reuses-menu-executable ()
   "From the menu, the command uses the executable the menu found."
   (let ((transient-current-command 'magento-cache-clean-transient))

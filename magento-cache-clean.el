@@ -395,6 +395,13 @@ restarted."
         (magento-cache-clean-watch-mode))
       ;; Set after the mode change, which kills local variables.
       (setq default-directory root)
+      ;; Forget the values applied by a previous start, which
+      ;; .dir-locals.el may no longer set.
+      (dolist (elt dir-local-variables-alist)
+        (unless (memq (car elt) '(eval mode))
+          (kill-local-variable (car elt))))
+      (setq dir-local-variables-alist nil
+            file-local-variables-alist nil)
       ;; So that a restart or the menu opened from here use the root's
       ;; options, not the global ones.
       (hack-dir-local-variables-non-file-buffer)
