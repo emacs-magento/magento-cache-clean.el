@@ -354,16 +354,19 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
   "Start cache-clean in watch mode with command line ARGS.
 Interactively, ARGS come from `magento-cache-clean-transient'.
 A running watcher is restarted, after confirmation unless this is run
-from that menu, where the command reads \"Restart watch\"."
+from that menu, where the command reads \"Restart watch\".  Declining
+just shows it.  Return the watch buffer."
   (interactive (list (magento-cache-clean--arguments)))
-  (let ((root (magento-cache-clean--directory)))
-    (when (and (magento-cache-clean--watch-process root)
-               (not (magento-cache-clean--menu-root))
-               (not (yes-or-no-p "Watch process already running.  Restart? ")))
-      (user-error "Watch process already running"))
-    (let ((buf (magento-cache-clean--watch-start root args)))
-      (display-buffer buf)
-      buf)))
+  (let* ((root (magento-cache-clean--directory))
+         (proc (magento-cache-clean--watch-process root))
+         (buf (if (and proc
+                       (not (magento-cache-clean--menu-root))
+                       (not (yes-or-no-p
+                             "Watch process already running.  Restart? ")))
+                  (process-buffer proc)
+                (magento-cache-clean--watch-start root args))))
+    (display-buffer buf)
+    buf))
 
 (defun magento-cache-clean-watch-restart ()
   "Restart the watcher in the current watch buffer with the same arguments."

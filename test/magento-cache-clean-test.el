@@ -518,7 +518,7 @@ also gets vendor/bin/cache-clean.js."
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
 (ert-deftest magento-cache-clean-test-watch-declined-restart-keeps-process ()
-  "Declining the restart prompt keeps the running watcher."
+  "Declining the restart prompt keeps and shows the running watcher."
   (magento-cache-clean-test--with-root root
     (let* ((magento-cache-clean-executable
             (magento-cache-clean-test--fake-executable root "exec sleep 30"))
@@ -526,9 +526,13 @@ also gets vendor/bin/cache-clean.js."
            (magento-cache-clean-directory nil)
            (buf (magento-cache-clean-watch)))
       (unwind-protect
-          (let ((proc (get-buffer-process buf)))
-            (cl-letf (((symbol-function 'yes-or-no-p) #'ignore))
-              (should-error (magento-cache-clean-watch) :type 'user-error))
+          (let ((proc (get-buffer-process buf))
+                (shown nil))
+            (cl-letf (((symbol-function 'yes-or-no-p) #'ignore)
+                      ((symbol-function 'display-buffer)
+                       (lambda (b &rest _) (setq shown b))))
+              (should (eq buf (magento-cache-clean-watch))))
+            (should (eq buf shown))
             (should (eq proc (get-buffer-process buf)))
             (should (process-live-p proc)))
         (when (buffer-live-p buf) (kill-buffer buf))))))
