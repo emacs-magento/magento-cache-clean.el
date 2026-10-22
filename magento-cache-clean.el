@@ -179,12 +179,18 @@ Outside the transient this is its saved or default value."
   (magento-cache-clean--transient-to-cli
    (transient-args 'magento-cache-clean-transient)))
 
+(defun magento-cache-clean--file (name root)
+  "Return the file executable NAME names for Magento ROOT, or nil.
+A NAME containing a slash is a file name relative to ROOT; any other
+NAME is a program to look up in variable `exec-path'."
+  (and (string-search "/" name) (expand-file-name name root)))
+
 (defun magento-cache-clean--found-p (name root)
   "Return non-nil if executable NAME is found for Magento ROOT.
 NAME is resolved as in `magento-cache-clean-executable'; on a remote
 ROOT it is looked up on the remote host."
-  (if (string-search "/" name)
-      (file-executable-p (expand-file-name name root))
+  (if-let* ((file (magento-cache-clean--file name root)))
+      (file-executable-p file)
     (let ((default-directory root))
       (executable-find name t))))
 
@@ -232,10 +238,10 @@ auto-detection finds none or the option has an invalid value."
 
 (defun magento-cache-clean--program (name root)
   "Return the program to run for executable NAME and Magento ROOT.
-A NAME containing a slash is a file name relative to ROOT; any other
-NAME is looked up in variable `exec-path' when the process starts."
-  (if (string-search "/" name)
-      (file-local-name (expand-file-name name root))
+NAME is resolved as by `magento-cache-clean--file', a program name
+being looked up when the process starts."
+  (if-let* ((file (magento-cache-clean--file name root)))
+      (file-local-name file)
     name))
 
 (defun magento-cache-clean--command (root args)
