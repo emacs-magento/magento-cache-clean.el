@@ -426,6 +426,28 @@ With error regexps, its buffer becomes the one `next-error' visits."
           (let ((kill-buffer-query-functions nil))
             (kill-buffer buf)))))))
 
+(ert-deftest magento-cache-clean-test-watch-restart-keeps-mode-values ()
+  "A value the mode sets survives a restart after .dir-locals.el drops it."
+  (magento-cache-clean-test--with-root root
+    (write-region (format "%S\n" '((nil . ((comint-password-prompt-regexp
+                                             . "Password:")))))
+                  nil (expand-file-name ".dir-locals.el" root))
+    (let* ((enable-local-variables :all)
+           (dir-locals-directory-cache nil)
+           (magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (buf (magento-cache-clean--watch-start root nil)))
+      (unwind-protect
+          (with-current-buffer buf
+            (should (equal "Password:" comint-password-prompt-regexp))
+            (write-region "()\n" nil (expand-file-name ".dir-locals.el" root))
+            (setq dir-locals-directory-cache nil)
+            (magento-cache-clean-watch-restart)
+            (should (eq regexp-unmatchable comint-password-prompt-regexp))
+            (should buffer-read-only))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-command-reuses-menu-executable ()
   "From the menu, the command uses the executable the menu found."
   (let ((transient-current-command 'magento-cache-clean-menu))
