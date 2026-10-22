@@ -230,9 +230,10 @@ has an invalid value."
     ((and (pred stringp) name) name)
     ((and (pred functionp) fn)
      (pcase (funcall fn root)
-       ((and (or 'nil (pred stringp)) name) name)
+       ('nil nil)
+       ((and (pred stringp) (pred (not string-empty-p)) name) name)
        (other (error "`magento-cache-clean-executable' returned %S, \
-not a string or nil" other))))
+not a non-empty string or nil" other))))
     (other (user-error "Invalid `magento-cache-clean-executable': %S" other))))
 
 (defun magento-cache-clean--executable (root)
