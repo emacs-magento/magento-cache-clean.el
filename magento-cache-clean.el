@@ -167,9 +167,9 @@ Outside the transient this is its saved or default value."
   "Return non-nil if executable NAME is found for Magento ROOT.
 NAME is resolved as in `magento-cache-clean-executable'; on a remote
 ROOT it is looked up on the remote host."
-  (let ((default-directory root))
-    (if (string-search "/" name)
-        (file-executable-p (expand-file-name name root))
+  (if (string-search "/" name)
+      (file-executable-p (expand-file-name name root))
+    (let ((default-directory root))
       (executable-find name t))))
 
 (defun magento-cache-clean--auto-detect (root)
