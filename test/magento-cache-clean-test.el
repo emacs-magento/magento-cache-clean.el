@@ -530,6 +530,23 @@ return [
   (let ((magento-cache-clean-directory "/no/such/magento/root/"))
     (should-error (magento-cache-clean--directory) :type 'user-error)))
 
+(ert-deftest magento-cache-clean-test-directory-of-output-buffer ()
+  "An output buffer's root is used, even without env.php or when another
+root is configured."
+  (let ((dir (file-name-as-directory (make-temp-file "not-magento" t)))
+        (magento-cache-clean-directory "/elsewhere/"))
+    (unwind-protect
+        (cl-letf (((symbol-function 'read-directory-name)
+                   (lambda (&rest _) (error "Unexpected prompt"))))
+          (dolist (mode '(magento-cache-clean-watch-mode
+                          magento-cache-clean-compilation-mode))
+            (with-temp-buffer
+              (setq default-directory dir)
+              (let ((enable-local-variables nil))
+                (funcall mode))
+              (should (equal dir (magento-cache-clean--directory))))))
+      (delete-directory dir t))))
+
 (ert-deftest magento-cache-clean-test-directory-prompt-is-expanded ()
   "A prompted directory is expanded, since the watch process gets no shell."
   (let ((temp-dir (make-temp-file "not-magento" t)))

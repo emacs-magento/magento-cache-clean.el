@@ -155,10 +155,16 @@ signal a `user-error' when it isn't given."
 
 (defun magento-cache-clean--root (&optional prompt)
   "Return the configured or detected Magento root.
-The root is detected by looking for app/etc/env.php upward.  When it
-can't be found, prompt for it if PROMPT is non-nil, else return nil.
-Signal a `user-error' when the configured root isn't a directory."
-  (if-let* ((dir (or magento-cache-clean-directory
+In a cache-clean output buffer, this is the buffer's root.  Otherwise
+it is detected by looking for app/etc/env.php upward.  When it can't be
+found, prompt for it if PROMPT is non-nil, else return nil.  Signal a
+`user-error' when the root isn't a directory."
+  (if-let* ((dir (or (and (derived-mode-p
+                           '(magento-cache-clean-compilation-mode
+                             magento-cache-clean-watch-mode))
+                          ;; Which may have no env.php, if it was read.
+                          default-directory)
+                     magento-cache-clean-directory
                      (locate-dominating-file default-directory
                                              "app/etc/env.php"))))
       (let ((dir (file-name-as-directory (expand-file-name dir))))
@@ -311,13 +317,11 @@ Symbolic links in ROOT aren't resolved, as that is slow when remote."
 
 (defun magento-cache-clean--watch-buffer (&optional root)
   "Return the watch buffer for Magento ROOT, or nil if there is none.
-ROOT defaults to the menu's root, the current watch buffer's root or
-the current buffer's root, in that order."
-  (let ((root (or root (magento-cache-clean--menu-root))))
-    (cond (root (magento-cache-clean--root-watch-buffer root))
-          ((derived-mode-p 'magento-cache-clean-watch-mode) (current-buffer))
-          ((when-let* ((root (magento-cache-clean--root)))
-             (magento-cache-clean--root-watch-buffer root))))))
+ROOT defaults to the menu's root, else the current buffer's root."
+  (when-let* ((root (or root
+                        (magento-cache-clean--menu-root)
+                        (magento-cache-clean--root))))
+    (magento-cache-clean--root-watch-buffer root)))
 
 (defun magento-cache-clean--watch-process (&optional root)
   "Return the live watch process for Magento ROOT, or nil.
