@@ -675,6 +675,26 @@ either, so later changes to the global values reach restarts."
                               magento-cache-clean-executable root)))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-watch-query-on-exit ()
+  "Exiting Emacs asks about watchers only when the option says so."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable
+           (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+          (default-directory root)
+          (magento-cache-clean-directory nil)
+          (buf nil))
+      (unwind-protect
+          (progn
+            (setq buf (magento-cache-clean-watch))
+            (should-not (process-query-on-exit-flag (get-buffer-process buf)))
+            (let ((magento-cache-clean-watch-query-on-exit t))
+              (with-current-buffer buf (magento-cache-clean-watch-restart)))
+            (should (process-query-on-exit-flag (get-buffer-process buf))))
+        (when (buffer-live-p buf)
+          (when-let* ((proc (get-buffer-process buf)))
+            (set-process-query-on-exit-flag proc nil))
+          (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-restart-starts-new-process ()
   "Restarting a running watcher leaves a new live process."
   (magento-cache-clean-test--with-root root

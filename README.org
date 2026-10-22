@@ -105,11 +105,12 @@ Output buffers are named after the Magento root, so they can be placed with
 
 * Customization
 
-| Variable                                 | Description                                 | Default         |
-|------------------------------------------+---------------------------------------------+-----------------|
-| =magento-cache-clean-executable=         | Which cache-clean to run (see below)        | =auto=          |
-| =magento-cache-clean-directory=          | Magento root (nil = auto-detect)            | =nil=           |
-| =magento-cache-clean-error-regexp-alist= | Regexps that make one-shot output clickable | =nil=           |
+| Variable                                  | Description                                 | Default |
+|-------------------------------------------+---------------------------------------------+---------|
+| =magento-cache-clean-executable=          | Which cache-clean to run (see below)        | =auto=  |
+| =magento-cache-clean-directory=           | Magento root (nil = auto-detect)            | =nil=   |
+| =magento-cache-clean-error-regexp-alist=  | Regexps that make one-shot output clickable | =nil=   |
+| =magento-cache-clean-watch-query-on-exit= | Ask before killing a running watcher        | =nil=   |
 
 ** Executable
 

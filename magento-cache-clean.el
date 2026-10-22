@@ -97,6 +97,12 @@ absolute names are safe as directory local values."
                  (directory :tag "Directory"))
   :safe (lambda (v) (or (null v) (and (stringp v) (file-name-absolute-p v)))))
 
+(defcustom magento-cache-clean-watch-query-on-exit nil
+  "Whether to ask before killing a running watcher.
+When non-nil, exiting Emacs or killing a watch buffer asks first.
+The value takes effect for watchers started afterwards."
+  :type 'boolean)
+
 ;;; Directory detection
 
 (defun magento-cache-clean--known-roots ()
@@ -360,7 +366,8 @@ restarted."
                           'font-lock-face 'comint-highlight-input))
       ;; `comint-exec' deletes any process still running in BUF.
       (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
-      (set-process-query-on-exit-flag (get-buffer-process buf) nil))
+      (set-process-query-on-exit-flag (get-buffer-process buf)
+                                      magento-cache-clean-watch-query-on-exit))
     buf))
 
 ;;; Commands
