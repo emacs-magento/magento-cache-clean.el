@@ -1661,12 +1661,14 @@ afterwards."
   (should (get 'magento-cache-clean-transient 'byte-obsolete-info)))
 
 (ert-deftest magento-cache-clean-test-compilation-mode-old-name ()
-  "The one-shot mode's old name and hook are obsolete aliases."
+  "The one-shot mode's old name, hook and map are obsolete aliases."
   (should (eq (indirect-function 'magento-cache-clean-mode)
               (indirect-function 'magento-cache-clean-compilation-mode)))
   (should (get 'magento-cache-clean-mode 'byte-obsolete-info))
   (should (eq 'magento-cache-clean-compilation-mode-hook
-              (indirect-variable 'magento-cache-clean-mode-hook))))
+              (indirect-variable 'magento-cache-clean-mode-hook)))
+  (should (eq 'magento-cache-clean-compilation-mode-map
+              (indirect-variable 'magento-cache-clean-mode-map))))
 
 (ert-deftest magento-cache-clean-test-executable-safe-local ()
   "Only auto and the predefined executables are safe as dir-locals."

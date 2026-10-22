@@ -360,6 +360,8 @@ ROOT defaults as in `magento-cache-clean--watch-buffer'."
   #'magento-cache-clean-compilation-mode "0.2.0")
 (define-obsolete-variable-alias 'magento-cache-clean-mode-hook
   'magento-cache-clean-compilation-mode-hook "0.2.0")
+(define-obsolete-variable-alias 'magento-cache-clean-mode-map
+  'magento-cache-clean-compilation-mode-map "0.2.0")
 
 (define-compilation-mode magento-cache-clean-compilation-mode "MagentoCacheClean"
   "Major mode for one-shot magento-cache-clean output."
