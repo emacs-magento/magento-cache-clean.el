@@ -112,7 +112,7 @@ The value takes effect for watchers started afterwards."
   :type 'boolean)
 
 (defcustom magento-cache-clean-error-regexp-alist nil
-  "Value of `compilation-error-regexp-alist' in `magento-cache-clean-mode'.
+  "Error regexps of one-shot output, as `compilation-error-regexp-alist'.
 cache-clean output has no file:line locations by default, so this is
 empty.  Add entries to make parts of the output clickable."
   ;; Not :safe, as an entry can name functions that run on the output.
@@ -125,7 +125,7 @@ empty.  Add entries to make parts of the output clickable."
   "Return the Magento roots that have a cache-clean buffer."
   (delete-dups
    (mapcar (lambda (buf) (buffer-local-value 'default-directory buf))
-           (match-buffers '(or (derived-mode . magento-cache-clean-mode)
+           (match-buffers '(or (derived-mode . magento-cache-clean-compilation-mode)
                                (derived-mode . magento-cache-clean-watch-mode))))))
 
 (defun magento-cache-clean--read-root ()
@@ -328,12 +328,17 @@ ROOT defaults as in `magento-cache-clean--watch-buffer'."
 
 ;;; Modes
 
-(define-compilation-mode magento-cache-clean-mode "MagentoCacheClean"
+(define-obsolete-function-alias 'magento-cache-clean-mode
+  #'magento-cache-clean-compilation-mode "0.2.0")
+(define-obsolete-variable-alias 'magento-cache-clean-mode-hook
+  'magento-cache-clean-compilation-mode-hook "0.2.0")
+
+(define-compilation-mode magento-cache-clean-compilation-mode "MagentoCacheClean"
   "Major mode for one-shot magento-cache-clean output."
   ;; `compilation-start' sets the root as `default-directory' first.
   ;; The root's options then apply when the menu is opened from here.
   (hack-dir-local-variables-non-file-buffer)
-  ;; The macro set this from the option before the root's value applied.
+  ;; After the root's values apply, so that it can set the option.
   (setq-local compilation-error-regexp-alist
               magento-cache-clean-error-regexp-alist)
   (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter nil t))
@@ -493,7 +498,7 @@ Interactively, ARGS come from `magento-cache-clean-menu'."
                              " "))
          (start (lambda ()
                   (let ((default-directory root))
-                    (compilation-start command #'magento-cache-clean-mode
+                    (compilation-start command #'magento-cache-clean-compilation-mode
                                        (lambda (_) name))))))
     ;; `compilation-start' inherits the current buffer's environment.
     (if (magento-cache-clean--same-host-p root)
