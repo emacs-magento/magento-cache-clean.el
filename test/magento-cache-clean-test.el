@@ -1103,6 +1103,23 @@ afterwards."
       (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer root)))
     (should-not (magento-cache-clean--watch-buffers))))
 
+(ert-deftest magento-cache-clean-test-stop-all-despite-interrupt-error ()
+  "A watcher that fails to stop doesn't keep the others running."
+  (magento-cache-clean-test--with-watchers (a b)
+    (let* ((buffers (magento-cache-clean--watch-buffers))
+           (failing (get-buffer-process (car buffers)))
+           (orig (symbol-function 'interrupt-process))
+           (interrupted nil))
+      (cl-letf (((symbol-function 'interrupt-process)
+                 (lambda (proc &rest args)
+                   (if (eq proc failing)
+                       (error "Connection lost")
+                     (push proc interrupted)
+                     (apply orig proc args))))
+                (inhibit-message t))
+        (should (string-search "1 failed" (magento-cache-clean-watch-stop-all))))
+      (should (equal (list (get-buffer-process (cadr buffers))) interrupted)))))
+
 (ert-deftest magento-cache-clean-test-read-root-offers-known-roots ()
   "The root prompt offers the roots that already have buffers."
   (magento-cache-clean-test--with-watchers (a)

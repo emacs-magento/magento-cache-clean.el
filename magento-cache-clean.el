@@ -486,15 +486,26 @@ else one of the running watchers read in the minibuffer."
 
 ;;;###autoload
 (defun magento-cache-clean-watch-stop-all ()
-  "Stop all running watchers."
+  "Stop all running watchers.
+A watcher that can't be interrupted, such as one whose connection was
+lost, doesn't keep the others running."
   (interactive)
-  (let ((buffers (magento-cache-clean--watch-buffers)))
+  (let ((buffers (magento-cache-clean--watch-buffers))
+        (failed 0))
     (unless buffers
       (user-error "No watch process running"))
     (dolist (buf buffers)
-      (interrupt-process (get-buffer-process buf)))
-    (message "Stopped %d magento-cache-clean watcher%s"
-             (length buffers) (if (cdr buffers) "s" ""))))
+      (condition-case err
+          (interrupt-process (get-buffer-process buf))
+        (error
+         (setq failed (1+ failed))
+         (message "Error stopping watcher in %s: %s"
+                  (buffer-name buf) (error-message-string err)))))
+    (message "Stopped %d magento-cache-clean watcher%s%s"
+             (- (length buffers) failed) (if (cdr buffers) "s" "")
+             (if (> failed 0)
+                 (format "; %d failed, see *Messages*" failed)
+               ""))))
 
 ;;; Transient
 
