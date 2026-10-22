@@ -111,6 +111,13 @@ When non-nil, exiting Emacs or killing a watch buffer asks first.
 The value takes effect for watchers started afterwards."
   :type 'boolean)
 
+(defcustom magento-cache-clean-interrupt-timeout 5
+  "Seconds to wait for a watcher to be interrupted.
+Interrupting a remote watcher waits for its host, so this keeps a lost
+connection from hanging Emacs exit, killing a watch buffer or stopping
+watchers."
+  :type 'number)
+
 (defcustom magento-cache-clean-error-regexp-alist nil
   "Error regexps of one-shot output, as `compilation-error-regexp-alist'.
 cache-clean output has no file:line locations by default, so this is
@@ -372,15 +379,20 @@ Interactively, N is the prefix argument, as for `self-insert-command'."
 Return non-nil if it was interrupted.
 Deleting the process, as `comint-exec' and `kill-buffer' do, only ends
 Tramp's local end of a remote watcher, while interrupting it reaches
-the remote host.  That waits for the host, so it hangs as long as a
-lost connection does."
+the remote host.  That waits for the host, at most
+`magento-cache-clean-interrupt-timeout' seconds."
   (when-let* ((proc (get-buffer-process (current-buffer)))
               ((process-live-p proc)))
-    ;; An error, such as a lost connection, would keep the buffer from
-    ;; being killed, Emacs from exiting or the other watchers from
-    ;; being stopped.
+    ;; An error or a hang, such as on a lost connection, would keep the
+    ;; buffer from being killed, Emacs from exiting or the other
+    ;; watchers from being stopped.
     (condition-case err
-        (progn (interrupt-process proc) t)
+        (with-timeout (magento-cache-clean-interrupt-timeout
+                       (message "Timed out interrupting the watcher in %s"
+                                (buffer-name))
+                       nil)
+          (interrupt-process proc)
+          t)
       (error
        (message "Error interrupting the watcher in %s: %s"
                 (buffer-name) (error-message-string err))
@@ -558,10 +570,11 @@ else one of the running watchers read in the minibuffer."
   (unless (with-current-buffer buffer
             (derived-mode-p 'magento-cache-clean-watch-mode))
     (user-error "%s is not a magento-cache-clean watch buffer" buffer))
-  (let ((proc (get-buffer-process buffer)))
-    (unless (process-live-p proc)
-      (user-error "No watch process running in %s" buffer))
-    (interrupt-process proc))
+  (unless (process-live-p (get-buffer-process buffer))
+    (user-error "No watch process running in %s" buffer))
+  (unless (with-current-buffer buffer
+            (magento-cache-clean--watch-interrupt))
+    (user-error "Couldn't interrupt the watcher in %s, see *Messages*" buffer))
   (message "Interrupted the magento-cache-clean watcher in %s"
            (abbreviate-file-name (buffer-local-value 'default-directory buffer))))
 

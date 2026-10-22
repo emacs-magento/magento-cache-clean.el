@@ -1386,6 +1386,33 @@ afterwards."
         (should (string-search "Connection lost" logged)))
       (should (magento-cache-clean--watch-interrupt)))))
 
+(ert-deftest magento-cache-clean-test-watch-interrupt-times-out ()
+  "An interrupt that hangs, as on a lost connection, gives up in time."
+  (magento-cache-clean-test--with-watchers (a)
+    (with-current-buffer (magento-cache-clean-test--watch-buffer a)
+      (let ((magento-cache-clean-interrupt-timeout 0.1)
+            (logged nil)
+            (start (float-time)))
+        (cl-letf (((symbol-function 'interrupt-process)
+                   (lambda (&rest _) (sleep-for 5)))
+                  ((symbol-function 'message)
+                   (lambda (format &rest args)
+                     (setq logged (apply #'format-message format args)))))
+          (should-not (magento-cache-clean--watch-interrupt)))
+        (should (< (- (float-time) start) 2))
+        (should (string-search "Timed out" logged))
+        (should (string-search (buffer-name) logged))))))
+
+(ert-deftest magento-cache-clean-test-stop-interrupt-failure ()
+  "Stopping a watcher that can't be interrupted is a user error."
+  (magento-cache-clean-test--with-watchers (a)
+    (let ((buf (magento-cache-clean-test--watch-buffer a))
+          (inhibit-message t))
+      (cl-letf (((symbol-function 'interrupt-process)
+                 (lambda (&rest _) (error "Connection lost"))))
+        (should-error (magento-cache-clean-watch-stop buf) :type 'user-error))
+      (should (process-live-p (get-buffer-process buf))))))
+
 (ert-deftest magento-cache-clean-test-read-root-offers-known-roots ()
   "The root prompt offers the roots that already have buffers."
   (magento-cache-clean-test--with-watchers (a)
