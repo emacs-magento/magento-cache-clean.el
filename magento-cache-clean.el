@@ -374,21 +374,35 @@ ROOT defaults as in `magento-cache-clean--watch-buffer'."
 (defvar-local magento-cache-clean--watch-args nil
   "Command line arguments the watch process in this buffer was started with.")
 
-(defun magento-cache-clean-watch-send-key (&optional n)
-  "Send the key just pressed to the watch process, N times.
+(defun magento-cache-clean--key-to-send ()
+  "Return the key `magento-cache-clean-watch-send-key' is to send.
+This is the key that ran it.  When it was run by name, as with
+\\[execute-extended-command], whose last key would be RET, read the key."
+  (let ((keys (this-single-command-keys)))
+    (if (or (length= keys 0)
+            (eq (key-binding keys) this-command))
+        last-command-event
+      (read-key "Key to send to the watcher: "))))
+
+(defun magento-cache-clean-watch-send-key (&optional n key)
+  "Send KEY to the watch process, N times.
 cache-clean reads stdin in raw mode and handles the key itself.
-Interactively, N is the prefix argument, as for `self-insert-command'."
-  (interactive "p" magento-cache-clean-watch-mode)
-  (setq n (or n 1))
+KEY defaults to the key just pressed.  Interactively, N is the prefix
+argument, as for `self-insert-command'."
+  (interactive (list (prefix-numeric-value current-prefix-arg)
+                     (magento-cache-clean--key-to-send))
+               magento-cache-clean-watch-mode)
+  (setq n (or n 1)
+        key (or key last-command-event))
   (when (< n 0)
     (user-error "Negative repetition argument %d" n))
-  (unless (characterp last-command-event)
-    (user-error "%s is not a key to send" (single-key-description
-                                           last-command-event)))
+  (unless (characterp key)
+    (user-error "%s is not a key to send" (single-key-description key)))
   (if-let* ((proc (get-buffer-process (current-buffer)))
             ((process-live-p proc)))
-      (process-send-string proc (make-string n last-command-event))
+      (process-send-string proc (make-string n key))
     (user-error "No watch process running")))
+
 
 (defvar-keymap magento-cache-clean-watch-mode-map
   :doc "Keymap for `magento-cache-clean-watch-mode'."
