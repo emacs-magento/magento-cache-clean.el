@@ -867,6 +867,27 @@ either, so later changes to the global values reach restarts."
             (set-process-query-on-exit-flag proc nil))
           (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-watch-reaped-at-start ()
+  "A watcher already gone when it was started leaves its buffer.
+Tramp may reap a remote command that exits at once before it returns."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (orig (symbol-function 'comint-exec))
+           (buf nil))
+      (unwind-protect
+          (cl-letf (((symbol-function 'comint-exec)
+                     (lambda (buffer &rest args)
+                       (apply orig buffer args)
+                       (delete-process (get-buffer-process buffer))
+                       buffer)))
+            (setq buf (magento-cache-clean-watch))
+            (should (buffer-live-p buf))
+            (should-not (get-buffer-process buf)))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-watch-restart-starts-new-process ()
   "Restarting a running watcher leaves a new live process."
   (magento-cache-clean-test--with-root root

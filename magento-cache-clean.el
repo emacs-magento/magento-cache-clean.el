@@ -458,8 +458,11 @@ restarted."
              (insert (error-message-string err) "\n")
            (kill-buffer buf))
          (signal (car err) (cdr err))))
-      (set-process-query-on-exit-flag (get-buffer-process buf)
-                                      magento-cache-clean-watch-query-on-exit)
+      ;; Tramp may already have reaped a remote command that exited at
+      ;; once, such as one that isn't found.
+      (when-let* ((proc (get-buffer-process buf)))
+        (set-process-query-on-exit-flag
+         proc magento-cache-clean-watch-query-on-exit))
       (add-hook 'kill-emacs-hook #'magento-cache-clean--interrupt-watchers))
     buf))
 
