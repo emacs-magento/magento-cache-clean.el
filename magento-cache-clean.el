@@ -45,6 +45,7 @@
 (require 'ansi-color)
 (require 'comint)
 (require 'compile)
+(require 'seq)
 (require 'thunk)
 (require 'transient)
 
