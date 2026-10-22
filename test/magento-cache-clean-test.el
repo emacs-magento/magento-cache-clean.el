@@ -514,6 +514,44 @@ value is visible."
                        (buffer-string)))))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
+(ert-deftest magento-cache-clean-test-watch-global-env-stays-global ()
+  "Watch doesn't freeze a copy of the global environment.
+Without buffer-local values in the caller, the watch buffer has none
+either, so later changes to the global values reach restarts."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable
+           (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+          (magento-cache-clean-directory nil)
+          (buf nil))
+      (unwind-protect
+          (with-temp-buffer
+            (setq default-directory root)
+            (setq buf (magento-cache-clean-watch))
+            (with-current-buffer buf
+              (should-not (local-variable-p 'process-environment))
+              (should-not (local-variable-p 'exec-path))
+              (magento-cache-clean-watch-restart)
+              (should-not (local-variable-p 'process-environment))
+              (should-not (local-variable-p 'exec-path))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest magento-cache-clean-test-watch-inherits-each-local-separately ()
+  "A local exec-path is inherited without a local environment."
+  (magento-cache-clean-test--with-root root
+    (let ((magento-cache-clean-executable
+           (magento-cache-clean-test--fake-executable root "exec sleep 30"))
+          (magento-cache-clean-directory nil)
+          (buf nil))
+      (unwind-protect
+          (with-temp-buffer
+            (setq default-directory root)
+            (setq-local exec-path (cons "/caller/bin/" exec-path))
+            (setq buf (magento-cache-clean-watch))
+            (with-current-buffer buf
+              (should-not (local-variable-p 'process-environment))
+              (should (equal "/caller/bin/" (car exec-path)))))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 (ert-deftest magento-cache-clean-test-same-host ()
   "Roots are on the same host when both are local or on the same remote."
   (let ((default-directory "/a/"))

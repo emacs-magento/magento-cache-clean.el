@@ -320,10 +320,13 @@ The buffer is truncated to `comint-buffer-maximum-size' lines.
 (defun magento-cache-clean--watch-start (root args)
   "Start cache-clean watching Magento ROOT with ARGS and return its buffer.
 When ROOT is on the current buffer's host, the process inherits the
-current buffer's environment and variable `exec-path'.  Any watcher
-already running for ROOT is restarted."
-  (let* ((env (and (magento-cache-clean--same-host-p root)
-                   (cons process-environment exec-path)))
+current buffer's local `process-environment' and variable `exec-path',
+as with `compilation-start'.  Any watcher already running for ROOT is
+restarted."
+  (let* ((same-host (magento-cache-clean--same-host-p root))
+         (env (and same-host (local-variable-p 'process-environment)
+                   process-environment))
+         (path (and same-host (local-variable-p 'exec-path) exec-path))
          ;; Before creating the buffer, as no executable may be found.
          (command (magento-cache-clean--command root (cons "--watch" args)))
          (buf (get-buffer-create (magento-cache-clean--buffer-name root t))))
@@ -333,9 +336,10 @@ already running for ROOT is restarted."
       ;; Set after the mode change, which kills local variables.
       (setq default-directory root)
       (if env
-          (setq-local process-environment (car env)
-                      exec-path (cdr env))
-        (kill-local-variable 'process-environment)
+          (setq-local process-environment env)
+        (kill-local-variable 'process-environment))
+      (if path
+          (setq-local exec-path path)
         (kill-local-variable 'exec-path))
       (setq magento-cache-clean--watch-args args)
       (goto-char (point-max))
