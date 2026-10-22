@@ -166,6 +166,8 @@ becomes two arguments, as cache-clean doesn't accept the = form."
               ((rx bos "--types=" (let type (+ anything)))
                (list type))
               ((rx bos "--file-list=" (let file (+ anything)))
+               ;; The menu's reader already gives a local name, but a
+               ;; value set from Lisp may still be remote.
                (list "--file-list" (file-local-name file)))
               (_ (list arg))))
           args))
