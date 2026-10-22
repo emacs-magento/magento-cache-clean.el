@@ -417,7 +417,8 @@ restarted."
          (path (and same-host (local-variable-p 'exec-path) exec-path))
          ;; Before creating the buffer, as no executable may be found.
          (command (magento-cache-clean--command root (cons "--watch" args)))
-         (buf (or (magento-cache-clean--root-watch-buffer root)
+         (old-buf (magento-cache-clean--root-watch-buffer root))
+         (buf (or old-buf
                   (get-buffer-create (magento-cache-clean--buffer-name root t)))))
     (with-current-buffer buf
       (unless (derived-mode-p 'magento-cache-clean-watch-mode)
@@ -446,7 +447,16 @@ restarted."
       (goto-char (point-max))
       (insert (propertize (concat "$ " (combine-and-quote-strings command) "\n")
                           'font-lock-face 'comint-highlight-input))
-      (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
+      ;; A configured executable isn't checked, so it may not be found.
+      ;; Don't leave a new buffer without a process, and tell why in one
+      ;; whose watcher was just stopped.
+      (condition-case err
+          (comint-exec buf (buffer-name buf) (car command) nil (cdr command))
+        (error
+         (if old-buf
+             (insert (error-message-string err) "\n")
+           (kill-buffer buf))
+         (signal (car err) (cdr err))))
       (set-process-query-on-exit-flag (get-buffer-process buf)
                                       magento-cache-clean-watch-query-on-exit)
       (add-hook 'kill-emacs-hook #'magento-cache-clean--interrupt-watchers))
