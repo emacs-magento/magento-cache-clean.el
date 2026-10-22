@@ -221,9 +221,13 @@ NAME is looked up in variable `exec-path' when the process starts."
   "Return the cache-clean command line for ROOT and ARGS as a list.
 ROOT may be remote; cache-clean gets its local name.  The executable is
 resolved in the current buffer, whose variable `exec-path' may be
-local."
-  `(,(magento-cache-clean--program (magento-cache-clean--executable root) root)
-    "-d" ,(file-local-name root) ,@args))
+local.  From `magento-cache-clean-transient', the executable the menu
+found for ROOT is reused, as looking it up again is slow when remote."
+  (let ((name (or (and (equal root (magento-cache-clean--menu-root))
+                       (plist-get (transient-scope) :executable))
+                  (magento-cache-clean--executable root))))
+    `(,(magento-cache-clean--program name root)
+      "-d" ,(file-local-name root) ,@args)))
 
 ;;; Buffers
 
@@ -438,27 +442,27 @@ else one of the running watchers read in the minibuffer."
   :argument "--types="
   :multi-value 'repeat)
 
-(defun magento-cache-clean--transient-executable (root)
-  "Describe the cache-clean executable for Magento ROOT in the menu."
-  (condition-case err
-      (concat (magento-cache-clean--executable root)
-              (and (eq magento-cache-clean-executable 'auto) " (auto)"))
-    (user-error "not found")
-    (error (error-message-string err))))
-
 (defun magento-cache-clean--transient-scope (root)
   "Return the scope of `magento-cache-clean-transient' for Magento ROOT.
-The executable is described once, since looking it up on every menu
-refresh is slow on a remote ROOT."
-  (list :root root
-        :executable (magento-cache-clean--transient-executable root)))
+The executable is looked up once, since doing it on every menu refresh
+and command is slow on a remote ROOT.  The scope has the executable's
+name, or the message of the error looking it up."
+  (condition-case err
+      (list :root root :executable (magento-cache-clean--executable root))
+    (error (list :root root :error (error-message-string err)))))
+
+(defun magento-cache-clean--transient-executable (scope)
+  "Describe the cache-clean executable of the menu SCOPE."
+  (or (plist-get scope :error)
+      (concat (plist-get scope :executable)
+              (and (eq magento-cache-clean-executable 'auto) " (auto)"))))
 
 (defun magento-cache-clean--transient-description ()
   "Return the heading of `magento-cache-clean-transient'."
   (let ((scope (transient-scope)))
     (format "Magento dir: %s   cache-clean: %s"
             (abbreviate-file-name (plist-get scope :root))
-            (plist-get scope :executable))))
+            (magento-cache-clean--transient-executable scope))))
 
 (defun magento-cache-clean--transient-watching-p ()
   "Return non-nil if the menu's Magento root has a running watcher."

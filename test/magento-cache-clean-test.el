@@ -248,27 +248,50 @@ also gets vendor/bin/cache-clean.js."
                           (magento-cache-clean--executable "/a/src/")))))
     (should (string-search "returned 42"
                            (magento-cache-clean--transient-executable
-                            "/a/src/")))))
+                            (magento-cache-clean--transient-scope "/a/src/"))))))
 
 (ert-deftest magento-cache-clean-test-transient-executable ()
-  "The menu shows the executable, marks auto and survives none found."
+  "The menu shows the executable, marks auto and explains none found."
   (magento-cache-clean-test--with-root root
     (magento-cache-clean-test--with-programs root '("cache-clean") nil
       (should (equal "cache-clean (auto)"
-                     (magento-cache-clean--transient-executable root)))
+                     (magento-cache-clean--transient-executable
+                      (magento-cache-clean--transient-scope root))))
       (let ((magento-cache-clean-executable "cache-clean.js"))
         (should (equal "cache-clean.js"
-                       (magento-cache-clean--transient-executable root))))
+                       (magento-cache-clean--transient-executable
+                        (magento-cache-clean--transient-scope root)))))
       (let ((exec-path nil))
-        (should (equal "not found"
-                       (magento-cache-clean--transient-executable root)))))))
+        (should (string-prefix-p "No cache-clean found (tried"
+                                 (magento-cache-clean--transient-executable
+                                  (magento-cache-clean--transient-scope root))))))))
 
 (ert-deftest magento-cache-clean-test-transient-scope ()
-  "The menu scope has the root and the executable, described once."
+  "The menu scope has the root and the executable, looked up once."
   (magento-cache-clean-test--with-root root
     (magento-cache-clean-test--with-programs root '("cache-clean") nil
-      (should (equal (list :root root :executable "cache-clean (auto)")
+      (should (equal (list :root root :executable "cache-clean")
                      (magento-cache-clean--transient-scope root))))))
+
+(ert-deftest magento-cache-clean-test-command-reuses-menu-executable ()
+  "From the menu, the command uses the executable the menu found."
+  (let ((transient-current-command 'magento-cache-clean-transient))
+    (cl-letf (((symbol-function 'transient-scope)
+               (lambda () '(:root "/a/src/" :executable "menu-cache-clean")))
+              ((symbol-function 'magento-cache-clean--executable)
+               (lambda (_) (error "Unexpected lookup"))))
+      (should (equal '("menu-cache-clean" "-d" "/a/src/")
+                     (magento-cache-clean--command "/a/src/" nil))))))
+
+(ert-deftest magento-cache-clean-test-command-menu-error-looks-up-again ()
+  "When the menu found no executable, the command signals the error."
+  (magento-cache-clean-test--with-root root
+    (magento-cache-clean-test--with-programs root nil nil
+      (let ((transient-current-command 'magento-cache-clean-transient)
+            (scope (magento-cache-clean--transient-scope root)))
+        (cl-letf (((symbol-function 'transient-scope) (lambda () scope)))
+          (should-error (magento-cache-clean--command root nil)
+                        :type 'user-error))))))
 
 (ert-deftest magento-cache-clean-test-executable-invalid-value ()
   "A value that is neither auto, a string nor a function is a user error."
