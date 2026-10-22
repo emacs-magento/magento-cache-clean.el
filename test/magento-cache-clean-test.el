@@ -566,6 +566,18 @@ afterwards."
     (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer b)))
     (should (get-buffer-process (magento-cache-clean-test--watch-buffer a)))))
 
+(ert-deftest magento-cache-clean-test-stop-from-menu-uses-menu-root ()
+  "From the menu, stop acts on the menu's root, even in another watch buffer."
+  (magento-cache-clean-test--with-watchers (a b)
+    (with-current-buffer (magento-cache-clean-test--watch-buffer a)
+      (let ((transient-current-command 'magento-cache-clean-transient))
+        (cl-letf (((symbol-function 'transient-scope)
+                   (lambda () (list :root b))))
+          (call-interactively #'magento-cache-clean-watch-stop))))
+    (magento-cache-clean-test--wait (magento-cache-clean-test--watch-buffer b))
+    (should-not (get-buffer-process (magento-cache-clean-test--watch-buffer b)))
+    (should (get-buffer-process (magento-cache-clean-test--watch-buffer a)))))
+
 (ert-deftest magento-cache-clean-test-stop-nothing-running ()
   "Stopping with no watcher running is a user error."
   (let ((default-directory temporary-file-directory))

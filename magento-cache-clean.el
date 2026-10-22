@@ -223,16 +223,17 @@ When WATCH is non-nil, return the watch buffer name."
               (match-buffers '(derived-mode . magento-cache-clean-watch-mode))))
 
 (defun magento-cache-clean--watch-process (&optional root)
-  "Return the watch process for Magento ROOT, or nil.
-ROOT defaults to the current watch buffer's root, the menu's root or
+  "Return the live watch process for Magento ROOT, or nil.
+ROOT defaults to the menu's root, the current watch buffer's root or
 the current buffer's root, in that order."
-  (if (and (not root) (derived-mode-p 'magento-cache-clean-watch-mode))
-      (get-buffer-process (current-buffer))
-    (when-let* ((root (or root
-                          (magento-cache-clean--menu-root)
-                          (magento-cache-clean--root)))
-                (buf (get-buffer (magento-cache-clean--buffer-name root t))))
-      (get-buffer-process buf))))
+  (let* ((root (or root (magento-cache-clean--menu-root)))
+         (buf (if (and (not root)
+                       (derived-mode-p 'magento-cache-clean-watch-mode))
+                  (current-buffer)
+                (when-let* ((root (or root (magento-cache-clean--root))))
+                  (get-buffer (magento-cache-clean--buffer-name root t)))))
+         (proc (and buf (get-buffer-process buf))))
+    (and (process-live-p proc) proc)))
 
 ;;; Modes
 
