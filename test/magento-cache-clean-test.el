@@ -719,7 +719,7 @@ return [
             (setq buf (magento-cache-clean '("--keep-generated" "config")))
             (magento-cache-clean-test--wait buf)
             (with-current-buffer buf
-              (should (derived-mode-p 'magento-cache-clean-mode))
+              (should (derived-mode-p 'magento-cache-clean-compilation-mode))
               (should (string-match-p
                        (regexp-quote
                         (format "FOO=from-caller PWD=%s ARGS=-d %s --keep-generated config"
@@ -1406,7 +1406,7 @@ afterwards."
   (should (custom-variable-p 'magento-cache-clean-error-regexp-alist))
   (let ((magento-cache-clean-error-regexp-alist '(("^ERR \\(.+\\)$" 1))))
     (with-temp-buffer
-      (magento-cache-clean-mode)
+      (magento-cache-clean-compilation-mode)
       (should (equal magento-cache-clean-error-regexp-alist
                      compilation-error-regexp-alist)))))
 
@@ -1417,6 +1417,14 @@ afterwards."
   (should (eq (indirect-function 'magento-cache-clean-transient)
               (indirect-function 'magento-cache-clean-menu)))
   (should (get 'magento-cache-clean-transient 'byte-obsolete-info)))
+
+(ert-deftest magento-cache-clean-test-compilation-mode-old-name ()
+  "The one-shot mode's old name and hook are obsolete aliases."
+  (should (eq (indirect-function 'magento-cache-clean-mode)
+              (indirect-function 'magento-cache-clean-compilation-mode)))
+  (should (get 'magento-cache-clean-mode 'byte-obsolete-info))
+  (should (eq 'magento-cache-clean-compilation-mode-hook
+              (indirect-variable 'magento-cache-clean-mode-hook))))
 
 (ert-deftest magento-cache-clean-test-executable-safe-local ()
   "Only auto and the predefined executables are safe as dir-locals."
