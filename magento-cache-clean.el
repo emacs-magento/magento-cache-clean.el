@@ -541,7 +541,7 @@ just shows it.  Return the watch buffer."
          (proc (magento-cache-clean--watch-process root))
          (buf (if (and proc
                        (not (magento-cache-clean--menu-root))
-                       (not (yes-or-no-p
+                       (not (y-or-n-p
                              "Watch process already running.  Restart? ")))
                   (process-buffer proc)
                 (magento-cache-clean--watch-start root args))))
