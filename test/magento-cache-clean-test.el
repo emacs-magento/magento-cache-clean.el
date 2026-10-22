@@ -975,7 +975,7 @@ Tramp may reap a remote command that exits at once before it returns."
            (buf (magento-cache-clean-watch)))
       (unwind-protect
           (let ((first (get-buffer-process buf)))
-            (cl-letf (((symbol-function 'yes-or-no-p) #'always))
+            (cl-letf (((symbol-function 'y-or-n-p) #'always))
               (magento-cache-clean-watch))
             (let ((second (get-buffer-process buf)))
               (should second)
@@ -1087,7 +1087,7 @@ Deleting a remote process leaves the watcher running on its host."
       (unwind-protect
           (let ((proc (get-buffer-process buf))
                 (shown nil))
-            (cl-letf (((symbol-function 'yes-or-no-p) #'ignore)
+            (cl-letf (((symbol-function 'y-or-n-p) #'ignore)
                       ((symbol-function 'display-buffer)
                        (lambda (b &rest _) (setq shown b))))
               (should (eq buf (magento-cache-clean-watch))))
@@ -1125,7 +1125,7 @@ Deleting a remote process leaves the watcher running on its host."
       (unwind-protect
           (cl-letf ((magento-cache-clean-executable
                      "magento-cache-clean-test-missing")
-                    ((symbol-function 'yes-or-no-p) (lambda (_) t)))
+                    ((symbol-function 'y-or-n-p) (lambda (_) t)))
             (should-error (magento-cache-clean-watch) :type 'file-missing)
             (should (eq buf (magento-cache-clean--root-watch-buffer root)))
             (with-current-buffer buf
@@ -1273,7 +1273,7 @@ afterwards."
       (should (eq (get-buffer-process buf)
                   (magento-cache-clean--watch-process a)))
       (let ((default-directory a))
-        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+        (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
           (should (eq buf (magento-cache-clean-watch)))))
       (should (process-live-p (get-buffer-process buf)))
       (should-not (get-buffer (magento-cache-clean--buffer-name a t))))))
@@ -1346,7 +1346,7 @@ afterwards."
     (let ((transient-current-command 'magento-cache-clean-menu)
           (first (get-buffer-process (magento-cache-clean-test--watch-buffer a))))
       (cl-letf (((symbol-function 'transient-scope) (lambda () (list :root a)))
-                ((symbol-function 'yes-or-no-p)
+                ((symbol-function 'y-or-n-p)
                  (lambda (&rest _) (error "Unexpected prompt"))))
         (magento-cache-clean-watch))
       (should-not (eq first (get-buffer-process
