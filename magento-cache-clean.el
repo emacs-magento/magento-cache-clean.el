@@ -88,10 +88,13 @@ values, since any other value could run any program."
 
 (defcustom magento-cache-clean-directory nil
   "Magento root directory.
-When nil, auto-detected by searching for app/etc/env.php."
+When nil, auto-detected by searching for app/etc/env.php.
+
+A relative name is relative to the current buffer's directory, so only
+absolute names are safe as directory local values."
   :type '(choice (const :tag "Auto-detect" nil)
                  (directory :tag "Directory"))
-  :safe (lambda (v) (or (null v) (stringp v))))
+  :safe (lambda (v) (or (null v) (and (stringp v) (file-name-absolute-p v)))))
 
 ;;; Directory detection
 

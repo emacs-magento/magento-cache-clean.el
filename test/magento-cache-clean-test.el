@@ -633,9 +633,10 @@ afterwards."
   (should-not (safe-local-variable-p 'magento-cache-clean-executable 'ignore)))
 
 (ert-deftest magento-cache-clean-test-directory-safe-local ()
-  "Directory is safe as a dir-local when string or nil."
+  "Directory is safe as a dir-local when absolute or nil."
   (should (safe-local-variable-p 'magento-cache-clean-directory nil))
   (should (safe-local-variable-p 'magento-cache-clean-directory "/path/to/magento"))
+  (should-not (safe-local-variable-p 'magento-cache-clean-directory "src"))
   (should-not (safe-local-variable-p 'magento-cache-clean-directory 42)))
 
 (provide 'magento-cache-clean-test)
