@@ -45,6 +45,7 @@
 (require 'ansi-color)
 (require 'comint)
 (require 'compile)
+(require 'thunk)
 (require 'transient)
 
 ;;; Customization
@@ -191,15 +192,11 @@ ROOT it is looked up on the remote host."
   "Return the name of the first cache-clean executable found for ROOT.
 Signal a `user-error' when there is none.  Node is only looked up when
 a script that needs it is found."
-  (let* ((node 'unchecked)
-         (node-p (lambda ()
-                   (when (eq node 'unchecked)
-                     (setq node (magento-cache-clean--found-p "node" root)))
-                   node))
-         (missing-node nil))
+  (let ((node (thunk-delay (magento-cache-clean--found-p "node" root)))
+        (missing-node nil))
     (or (seq-some (pcase-lambda (`(,name . ,needs-node))
                     (when (magento-cache-clean--found-p name root)
-                      (if (or (not needs-node) (funcall node-p))
+                      (if (or (not needs-node) (thunk-force node))
                           name
                         (push name missing-node)
                         nil)))
