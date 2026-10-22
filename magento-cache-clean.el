@@ -318,8 +318,11 @@ empty.  Add entries to make parts of the output clickable."
 cache-clean reads stdin in raw mode and handles the key itself.
 Interactively, N is the prefix argument, as for `self-insert-command'."
   (interactive "p")
+  (setq n (or n 1))
+  (when (< n 0)
+    (user-error "Negative repetition argument %d" n))
   (if-let* ((proc (get-buffer-process (current-buffer))))
-      (process-send-string proc (make-string (or n 1) last-command-event))
+      (process-send-string proc (make-string n last-command-event))
     (user-error "No watch process running")))
 
 (defvar-keymap magento-cache-clean-watch-mode-map
