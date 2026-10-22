@@ -429,15 +429,17 @@ With error regexps, its buffer becomes the one `next-error' visits."
 (ert-deftest magento-cache-clean-test-watch-restart-without-executable-keeps-watcher ()
   "A restart that finds no executable says why and keeps the watcher."
   (magento-cache-clean-test--with-root root
-    (magento-cache-clean-test--write-dir-locals
-     root (magento-cache-clean-test--fake-executable root "exec sleep 30"))
-    (let* ((enable-local-variables :all)
+    (let* ((enable-local-variables :safe)
            (dir-locals-directory-cache nil)
+           (magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "exec sleep 30"))
            (buf (magento-cache-clean--watch-start root nil))
            (proc (get-buffer-process buf)))
       (unwind-protect
           (with-current-buffer buf
-            (write-region "()\n" nil (expand-file-name ".dir-locals.el" root))
+            ;; Auto-detection then finds nothing: there is no vendor
+            ;; script, and nothing on the empty `exec-path'.
+            (magento-cache-clean-test--write-dir-locals root 'auto)
             (setq dir-locals-directory-cache nil)
             (let ((exec-path nil))
               (should-error (magento-cache-clean-watch-restart) :type 'user-error))
