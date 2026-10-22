@@ -579,8 +579,11 @@ lost, doesn't keep the others running."
                                        (magento-cache-clean--watch-interrupt)))
                                    buffers))
            (failed (- (length buffers) interrupted)))
-      (message "Interrupted %d magento-cache-clean watcher%s%s"
-               interrupted (if (= interrupted 1) "" "s")
+      (message (concat (ngettext "Interrupted %d magento-cache-clean watcher"
+                                 "Interrupted %d magento-cache-clean watchers"
+                                 interrupted)
+                       "%s")
+               interrupted
                (if (> failed 0)
                    (format "; %d failed, see *Messages*" failed)
                  "")))))
