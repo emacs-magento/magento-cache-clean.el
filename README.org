@@ -7,7 +7,7 @@ Emacs integration for [[https://github.com/mage-os/magento-cache-clean][mage-os/
 
 - One-shot cache cleaning via =magento-cache-clean= (compilation buffer)
 - Watch mode via =magento-cache-clean-watch= (comint; keys go straight to cache-clean)
-- Transient UI via =magento-cache-clean-transient=
+- Transient menu via =magento-cache-clean-menu=
 - Auto-detection of Magento root directory (=app/etc/env.php=)
 - Works on remote projects (TRAMP, e.g. =/docker:=)
 - Several Magento instances at once: one output buffer and watcher per root
@@ -45,9 +45,9 @@ Clone the repository and add it to your =load-path=:
 
 * Usage
 
-** Transient interface
+** Menu
 
-Run =M-x magento-cache-clean-transient= to open the transient UI.  The
+Run =M-x magento-cache-clean-menu= to open the transient menu.  The
 Magento root is detected when the menu opens (with =C-u=, or when it
 can't be detected, you are prompted for it; =M-n= offers the roots you
 already have buffers for).  In the menu you can:

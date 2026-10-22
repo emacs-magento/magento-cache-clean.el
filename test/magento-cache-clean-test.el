@@ -254,8 +254,8 @@ also gets vendor/bin/cache-clean.js."
                     (car (should-error
                           (magento-cache-clean--executable "/a/src/")))))
     (should (string-search "returned 42"
-                           (magento-cache-clean--transient-executable
-                            (magento-cache-clean--transient-scope "/a/src/"))))))
+                           (magento-cache-clean--menu-executable
+                            (magento-cache-clean--menu-scope "/a/src/"))))))
 
 (ert-deftest magento-cache-clean-test-executable-function-empty-result ()
   "A function returning an empty string is an error, not a program name."
@@ -264,42 +264,42 @@ also gets vendor/bin/cache-clean.js."
                     (car (should-error
                           (magento-cache-clean--executable "/a/src/")))))
     (should (string-search "returned \"\""
-                           (magento-cache-clean--transient-executable
-                            (magento-cache-clean--transient-scope "/a/src/"))))))
+                           (magento-cache-clean--menu-executable
+                            (magento-cache-clean--menu-scope "/a/src/"))))))
 
-(ert-deftest magento-cache-clean-test-transient-executable ()
+(ert-deftest magento-cache-clean-test-menu-executable ()
   "The menu shows the executable, marks auto and explains none found."
   (magento-cache-clean-test--with-root root
     (magento-cache-clean-test--with-programs root '("cache-clean") nil
       (should (equal "cache-clean (auto)"
-                     (magento-cache-clean--transient-executable
-                      (magento-cache-clean--transient-scope root))))
+                     (magento-cache-clean--menu-executable
+                      (magento-cache-clean--menu-scope root))))
       (let ((magento-cache-clean-executable "cache-clean.js"))
         (should (equal "cache-clean.js"
-                       (magento-cache-clean--transient-executable
-                        (magento-cache-clean--transient-scope root)))))
+                       (magento-cache-clean--menu-executable
+                        (magento-cache-clean--menu-scope root)))))
       (let ((exec-path nil))
         (should (string-prefix-p "No cache-clean found (tried"
-                                 (magento-cache-clean--transient-executable
-                                  (magento-cache-clean--transient-scope root))))))))
+                                 (magento-cache-clean--menu-executable
+                                  (magento-cache-clean--menu-scope root))))))))
 
-(ert-deftest magento-cache-clean-test-transient-scope ()
+(ert-deftest magento-cache-clean-test-menu-scope ()
   "The menu scope has the root and the executable, looked up once."
   (magento-cache-clean-test--with-root root
     (magento-cache-clean-test--with-programs root '("cache-clean") nil
       (should (equal (list :root root :executable "cache-clean" :auto t)
-                     (magento-cache-clean--transient-scope root))))))
+                     (magento-cache-clean--menu-scope root))))))
 
-(ert-deftest magento-cache-clean-test-transient-executable-auto-from-function ()
+(ert-deftest magento-cache-clean-test-menu-executable-auto-from-function ()
   "A function returning nil auto-detects, which the menu shows."
   (magento-cache-clean-test--with-root root
     (magento-cache-clean-test--with-programs root '("cache-clean") nil
       (let ((magento-cache-clean-executable #'ignore))
         (should (equal "cache-clean (auto)"
-                       (magento-cache-clean--transient-executable
-                        (magento-cache-clean--transient-scope root))))))))
+                       (magento-cache-clean--menu-executable
+                        (magento-cache-clean--menu-scope root))))))))
 
-(ert-deftest magento-cache-clean-test-transient-executable-dir-local ()
+(ert-deftest magento-cache-clean-test-menu-executable-dir-local ()
   "The menu heading follows the opening buffer's local value.
 Transient draws the heading in another buffer, where only the global
 value is visible."
@@ -307,11 +307,11 @@ value is visible."
     (magento-cache-clean-test--with-programs root '("cache-clean") nil
       (let ((scope (with-temp-buffer
                      (setq-local magento-cache-clean-executable "cache-clean")
-                     (magento-cache-clean--transient-scope root))))
+                     (magento-cache-clean--menu-scope root))))
         (with-temp-buffer
           (should (eq 'auto magento-cache-clean-executable))
           (should (equal "cache-clean"
-                         (magento-cache-clean--transient-executable scope))))))))
+                         (magento-cache-clean--menu-executable scope))))))))
 
 (defun magento-cache-clean-test--write-dir-locals (root executable)
   "Make EXECUTABLE ROOT's directory local `magento-cache-clean-executable'."
@@ -392,7 +392,7 @@ The menu opened from it must find the same executable as from a file."
 
 (ert-deftest magento-cache-clean-test-command-reuses-menu-executable ()
   "From the menu, the command uses the executable the menu found."
-  (let ((transient-current-command 'magento-cache-clean-transient))
+  (let ((transient-current-command 'magento-cache-clean-menu))
     (cl-letf (((symbol-function 'transient-scope)
                (lambda () '(:root "/a/src/" :executable "menu-cache-clean")))
               ((symbol-function 'magento-cache-clean--executable)
@@ -404,8 +404,8 @@ The menu opened from it must find the same executable as from a file."
   "When the menu found no executable, the command signals the error."
   (magento-cache-clean-test--with-root root
     (magento-cache-clean-test--with-programs root nil nil
-      (let ((transient-current-command 'magento-cache-clean-transient)
-            (scope (magento-cache-clean--transient-scope root)))
+      (let ((transient-current-command 'magento-cache-clean-menu)
+            (scope (magento-cache-clean--menu-scope root)))
         (cl-letf (((symbol-function 'transient-scope) (lambda () scope)))
           (should-error (magento-cache-clean--command root nil)
                         :type 'user-error))))))
@@ -511,7 +511,7 @@ return [
 
 (ert-deftest magento-cache-clean-test-directory-uses-menu-root ()
   "Commands run from the menu use the root it was opened with."
-  (let ((transient-current-command 'magento-cache-clean-transient)
+  (let ((transient-current-command 'magento-cache-clean-menu)
         (magento-cache-clean-directory "/elsewhere/"))
     (cl-letf (((symbol-function 'transient-scope) (lambda () '(:root "/menu/root/"))))
       (should (equal "/menu/root/" (magento-cache-clean--directory))))))
@@ -1218,7 +1218,7 @@ afterwards."
       (with-current-buffer buf-a
         (let ((magento-cache-clean-directory b))
           (should (eq buf-a (magento-cache-clean--watch-buffer)))
-          (let ((transient-current-command 'magento-cache-clean-transient))
+          (let ((transient-current-command 'magento-cache-clean-menu))
             (cl-letf (((symbol-function 'transient-scope)
                        (lambda () (list :root b))))
               (should (eq buf-b (magento-cache-clean--watch-buffer)))))))
@@ -1296,7 +1296,7 @@ afterwards."
   "From the menu, stop acts on the menu's root, even in another watch buffer."
   (magento-cache-clean-test--with-watchers (a b)
     (with-current-buffer (magento-cache-clean-test--watch-buffer a)
-      (let ((transient-current-command 'magento-cache-clean-transient))
+      (let ((transient-current-command 'magento-cache-clean-menu))
         (cl-letf (((symbol-function 'transient-scope)
                    (lambda () (list :root b))))
           (call-interactively #'magento-cache-clean-watch-stop))))
@@ -1307,7 +1307,7 @@ afterwards."
 (ert-deftest magento-cache-clean-test-menu-restarts-without-prompt ()
   "From the menu, where it reads \"Restart watch\", restart doesn't ask."
   (magento-cache-clean-test--with-watchers (a)
-    (let ((transient-current-command 'magento-cache-clean-transient)
+    (let ((transient-current-command 'magento-cache-clean-menu)
           (first (get-buffer-process (magento-cache-clean-test--watch-buffer a))))
       (cl-letf (((symbol-function 'transient-scope) (lambda () (list :root a)))
                 ((symbol-function 'yes-or-no-p)
@@ -1411,6 +1411,12 @@ afterwards."
                      compilation-error-regexp-alist)))))
 
 ;;; Safe local variables
+
+(ert-deftest magento-cache-clean-test-menu-old-name ()
+  "The menu's old name still opens it, as an obsolete alias."
+  (should (eq (indirect-function 'magento-cache-clean-transient)
+              (indirect-function 'magento-cache-clean-menu)))
+  (should (get 'magento-cache-clean-transient 'byte-obsolete-info)))
 
 (ert-deftest magento-cache-clean-test-executable-safe-local ()
   "Only auto and the predefined executables are safe as dir-locals."

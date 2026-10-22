@@ -31,7 +31,7 @@
 ;; Features:
 ;; - One-shot cache cleaning via `magento-cache-clean'
 ;; - Watch mode via `magento-cache-clean-watch' (comint)
-;; - Transient UI via `magento-cache-clean-transient'
+;; - Transient menu via `magento-cache-clean-menu'
 ;; - Auto-detection of Magento root directory
 ;; - Per-project configuration via .dir-locals.el
 ;;
@@ -161,9 +161,9 @@ Signal a `user-error' when the configured root isn't a directory."
     (and prompt (magento-cache-clean--read-root))))
 
 (defun magento-cache-clean--menu-root ()
-  "Return the root chosen in `magento-cache-clean-transient', or nil.
+  "Return the root chosen in `magento-cache-clean-menu', or nil.
 Only non-nil while a command runs from that menu."
-  (and (eq transient-current-command 'magento-cache-clean-transient)
+  (and (eq transient-current-command 'magento-cache-clean-menu)
        (plist-get (transient-scope) :root)))
 
 (defun magento-cache-clean--directory ()
@@ -189,10 +189,10 @@ becomes two arguments, as cache-clean doesn't accept the = form."
           args))
 
 (defun magento-cache-clean--arguments ()
-  "Return the cache-clean arguments set in `magento-cache-clean-transient'.
+  "Return the cache-clean arguments set in `magento-cache-clean-menu'.
 Outside the transient this is its saved or default value."
   (magento-cache-clean--transient-to-cli
-   (transient-args 'magento-cache-clean-transient)))
+   (transient-args 'magento-cache-clean-menu)))
 
 (defun magento-cache-clean--file (name root)
   "Return the file executable NAME names for Magento ROOT, or nil.
@@ -271,7 +271,7 @@ being looked up when the process starts."
   "Return the cache-clean command line for ROOT and ARGS as a list.
 ROOT may be remote; cache-clean gets its local name.  The executable is
 resolved in the current buffer, whose variable `exec-path' may be
-local.  From `magento-cache-clean-transient', the executable the menu
+local.  From `magento-cache-clean-menu', the executable the menu
 found for ROOT is reused, as looking it up again is slow when remote."
   (let ((name (or (and (equal root (magento-cache-clean--menu-root))
                        (plist-get (transient-scope) :executable))
@@ -482,7 +482,7 @@ restarted."
 ;;;###autoload
 (defun magento-cache-clean (&optional args)
   "Run cache-clean once with command line ARGS.
-Interactively, ARGS come from `magento-cache-clean-transient'."
+Interactively, ARGS come from `magento-cache-clean-menu'."
   (interactive (list (magento-cache-clean--arguments)))
   (let* ((root (magento-cache-clean--directory))
          (name (magento-cache-clean--buffer-name root))
@@ -503,7 +503,7 @@ Interactively, ARGS come from `magento-cache-clean-transient'."
 ;;;###autoload
 (defun magento-cache-clean-watch (&optional args)
   "Start cache-clean in watch mode with command line ARGS.
-Interactively, ARGS come from `magento-cache-clean-transient'.
+Interactively, ARGS come from `magento-cache-clean-menu'.
 A running watcher is restarted, after confirmation unless this is run
 from that menu, where the command reads \"Restart watch\".  Declining
 just shows it.  Return the watch buffer."
@@ -640,7 +640,7 @@ skipped."
         (nreverse types)))))
 
 (defun magento-cache-clean--cache-types ()
-  "Return the cache types to complete in `magento-cache-clean-transient'.
+  "Return the cache types to complete in `magento-cache-clean-menu'.
 They are read from the menu root's env.php, falling back to the core
 types.  Other names can still be entered, since cache-clean takes any."
   (or (ignore-errors
@@ -655,8 +655,8 @@ types.  Other names can still be entered, since cache-clean takes any."
   :multi-value 'repeat
   :choices #'magento-cache-clean--cache-types)
 
-(defun magento-cache-clean--transient-scope (root)
-  "Return the scope of `magento-cache-clean-transient' for Magento ROOT.
+(defun magento-cache-clean--menu-scope (root)
+  "Return the scope of `magento-cache-clean-menu' for Magento ROOT.
 The executable is looked up once, since doing it on every menu refresh
 and command is slow on a remote ROOT.  The scope has the executable's
 name and whether it was auto-detected, or the message of the error
@@ -669,20 +669,20 @@ since that is where directory local values apply."
               :auto (not name)))
     (error (list :root root :error (error-message-string err)))))
 
-(defun magento-cache-clean--transient-executable (scope)
+(defun magento-cache-clean--menu-executable (scope)
   "Describe the cache-clean executable of the menu SCOPE."
   (or (plist-get scope :error)
       (concat (plist-get scope :executable)
               (and (plist-get scope :auto) " (auto)"))))
 
-(defun magento-cache-clean--transient-description ()
-  "Return the heading of `magento-cache-clean-transient'."
+(defun magento-cache-clean--menu-description ()
+  "Return the heading of `magento-cache-clean-menu'."
   (let ((scope (transient-scope)))
     (format "Magento dir: %s   cache-clean: %s"
             (abbreviate-file-name (plist-get scope :root))
-            (magento-cache-clean--transient-executable scope))))
+            (magento-cache-clean--menu-executable scope))))
 
-(defun magento-cache-clean--transient-watching-p ()
+(defun magento-cache-clean--menu-watching-p ()
   "Return non-nil if the menu's Magento root has a running watcher."
   (magento-cache-clean--watch-process (plist-get (transient-scope) :root)))
 
@@ -692,14 +692,14 @@ PROMPT, INITIAL-INPUT and HISTORY are as for a transient reader."
   (let ((default-directory (plist-get (transient-scope) :root)))
     (transient-read-existing-file prompt initial-input history)))
 
-;;;###autoload (autoload 'magento-cache-clean-transient "magento-cache-clean" nil t)
-(transient-define-prefix magento-cache-clean-transient (&optional choose-root)
+;;;###autoload (autoload 'magento-cache-clean-menu "magento-cache-clean" nil t)
+(transient-define-prefix magento-cache-clean-menu (&optional choose-root)
   "Transient interface for magento-cache-clean.
 The Magento root is detected when the menu opens.  With a prefix
 argument CHOOSE-ROOT, or when it can't be detected, prompt for it.
 Options such as `magento-cache-clean-executable' are those of the
 current buffer, even for a root chosen elsewhere."
-  [:description magento-cache-clean--transient-description
+  [:description magento-cache-clean--menu-description
    ["Options"
     (magento-cache-clean--infix-verbosity)
     ("-k" "Keep generated" "--keep-generated")
@@ -711,19 +711,23 @@ current buffer, even for a root chosen elsewhere."
     ("c" "Clean" magento-cache-clean)
     ("w" magento-cache-clean-watch
      :description (lambda ()
-                    (if (magento-cache-clean--transient-watching-p)
+                    (if (magento-cache-clean--menu-watching-p)
                         "Restart watch"
                       "Watch")))
     ("s" "Stop watch" magento-cache-clean-watch-stop
-     :inapt-if-not magento-cache-clean--transient-watching-p)
+     :inapt-if-not magento-cache-clean--menu-watching-p)
     ("S" "Stop all watchers" magento-cache-clean-watch-stop-all
      :inapt-if-not magento-cache-clean--watch-buffers)]]
   (interactive "P")
-  (transient-setup 'magento-cache-clean-transient nil nil
-                   :scope (magento-cache-clean--transient-scope
+  (transient-setup 'magento-cache-clean-menu nil nil
+                   :scope (magento-cache-clean--menu-scope
                            (if choose-root
                                (magento-cache-clean--read-root)
                              (magento-cache-clean--root t)))))
+
+;;;###autoload
+(define-obsolete-function-alias 'magento-cache-clean-transient
+  #'magento-cache-clean-menu "0.2.0")
 
 (provide 'magento-cache-clean)
 ;;; magento-cache-clean.el ends here
