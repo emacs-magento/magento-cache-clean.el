@@ -128,10 +128,20 @@ empty.  Add entries to make parts of the output clickable."
 
 ;;; Directory detection
 
+(defvar-local magento-cache-clean--watch-root nil
+  "Magento root the watch process in this buffer was started for.")
+
+(defun magento-cache-clean--output-root (&optional buffer)
+  "Return the Magento root of cache-clean output BUFFER.
+BUFFER defaults to the current buffer.  The root is kept apart from
+`default-directory', which \\[cd] changes."
+  (with-current-buffer (or buffer (current-buffer))
+    (or magento-cache-clean--watch-root compilation-directory default-directory)))
+
 (defun magento-cache-clean--known-roots ()
   "Return the Magento roots that have a cache-clean buffer."
   (delete-dups
-   (mapcar (lambda (buf) (buffer-local-value 'default-directory buf))
+   (mapcar #'magento-cache-clean--output-root
            (match-buffers '(or (derived-mode . magento-cache-clean-compilation-mode)
                                (derived-mode . magento-cache-clean-watch-mode))))))
 
@@ -163,7 +173,7 @@ found, prompt for it if PROMPT is non-nil, else return nil.  Signal a
                            '(magento-cache-clean-compilation-mode
                              magento-cache-clean-watch-mode))
                           ;; Which may have no env.php, if it was read.
-                          default-directory)
+                          (magento-cache-clean--output-root))
                      magento-cache-clean-directory
                      (locate-dominating-file default-directory
                                              "app/etc/env.php"))))
@@ -319,7 +329,8 @@ Symbolic links in ROOT aren't resolved, as that is slow when remote."
   (car (match-buffers
         `(and (derived-mode . magento-cache-clean-watch-mode)
               ,(lambda (buf)
-                 (equal root (buffer-local-value 'default-directory buf)))))))
+                 (equal root (buffer-local-value 'magento-cache-clean--watch-root
+                                                buf)))))))
 
 (defun magento-cache-clean--watch-buffer (&optional root)
   "Return the watch buffer for Magento ROOT, or nil if there is none.
@@ -483,7 +494,8 @@ restarted."
       (if path
           (setq-local exec-path path)
         (kill-local-variable 'exec-path))
-      (setq magento-cache-clean--watch-args args)
+      (setq magento-cache-clean--watch-root root
+            magento-cache-clean--watch-args args)
       ;; `comint-exec' would only delete a running watcher, which leaves
       ;; a remote one running.  A local one is killed by that deletion
       ;; right after, before it handles the interrupt, so it can't rely
@@ -565,7 +577,7 @@ just shows it.  Return the watch buffer."
 (defun magento-cache-clean-watch-restart ()
   "Restart the watcher in the current watch buffer with the same arguments."
   (interactive nil magento-cache-clean-watch-mode)
-  (magento-cache-clean--watch-start default-directory
+  (magento-cache-clean--watch-start (magento-cache-clean--output-root)
                                     magento-cache-clean--watch-args))
 
 (defun magento-cache-clean--read-watch-buffer ()
@@ -602,7 +614,7 @@ else one of the running watchers read in the minibuffer."
             (magento-cache-clean--watch-interrupt))
     (user-error "Couldn't interrupt the watcher in %s, see *Messages*" buffer))
   (message "Interrupted the magento-cache-clean watcher in %s"
-           (abbreviate-file-name (buffer-local-value 'default-directory buffer))))
+           (abbreviate-file-name (magento-cache-clean--output-root buffer))))
 
 ;;;###autoload
 (defun magento-cache-clean-watch-stop-all ()

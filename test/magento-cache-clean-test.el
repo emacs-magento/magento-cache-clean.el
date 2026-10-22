@@ -1407,6 +1407,37 @@ afterwards."
       (should (process-live-p (get-buffer-process buf)))
       (should-not (get-buffer (magento-cache-clean--buffer-name a t))))))
 
+(ert-deftest magento-cache-clean-test-watch-root-survives-cd ()
+  "A \\[cd] in a watch buffer doesn't change its root."
+  (magento-cache-clean-test--with-watchers (a)
+    (let ((buf (magento-cache-clean-test--watch-buffer a))
+          (elsewhere (file-name-as-directory temporary-file-directory)))
+      (with-current-buffer buf
+        (setq default-directory elsewhere)
+        (should (equal a (magento-cache-clean--root))))
+      (should (eq buf (magento-cache-clean--root-watch-buffer a)))
+      (should-not (magento-cache-clean--root-watch-buffer elsewhere))
+      (should (member a (magento-cache-clean--known-roots)))
+      (with-current-buffer buf
+        (magento-cache-clean-watch-restart)
+        (should (equal a default-directory)))
+      (should (eq buf (magento-cache-clean--root-watch-buffer a))))))
+
+(ert-deftest magento-cache-clean-test-one-shot-root-survives-cd ()
+  "A \\[cd] in a one-shot buffer doesn't change its root."
+  (magento-cache-clean-test--with-root root
+    (let* ((magento-cache-clean-executable
+            (magento-cache-clean-test--fake-executable root "echo done"))
+           (default-directory root)
+           (magento-cache-clean-directory nil)
+           (buf (magento-cache-clean)))
+      (unwind-protect
+          (with-current-buffer buf
+            (setq default-directory temporary-file-directory)
+            (should (equal root (magento-cache-clean--root))))
+        (magento-cache-clean-test--wait buf)
+        (kill-buffer buf)))))
+
 (ert-deftest magento-cache-clean-test-stop-by-buffer-name ()
   "Stop takes the watch buffer's name too."
   (magento-cache-clean-test--with-watchers (a)
