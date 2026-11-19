@@ -3,7 +3,9 @@
 ;; Copyright (C) 2026  Piotr Kwiecinski
 
 ;; Author: Piotr Kwiecinski <piotr.kwiecinski@codemanufacture.com>
+;; x-release-please-start-version
 ;; Version: 0.1.0
+;; x-release-please-end
 ;; Package-Requires: ((emacs "30.1") (transient "0.7.2"))
 ;; Keywords: tools, processes
 ;; URL: https://github.com/emacs-magento/magento-cache-clean.el
