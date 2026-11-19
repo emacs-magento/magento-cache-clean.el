@@ -1778,22 +1778,6 @@ That is slow when remote, and the command looks it up anyway."
 
 ;;; Safe local variables
 
-(ert-deftest magento-cache-clean-test-menu-old-name ()
-  "The menu's old name still opens it, as an obsolete alias."
-  (should (eq (indirect-function 'magento-cache-clean-transient)
-              (indirect-function 'magento-cache-clean-menu)))
-  (should (get 'magento-cache-clean-transient 'byte-obsolete-info)))
-
-(ert-deftest magento-cache-clean-test-compilation-mode-old-name ()
-  "The one-shot mode's old name, hook and map are obsolete aliases."
-  (should (eq (indirect-function 'magento-cache-clean-mode)
-              (indirect-function 'magento-cache-clean-compilation-mode)))
-  (should (get 'magento-cache-clean-mode 'byte-obsolete-info))
-  (should (eq 'magento-cache-clean-compilation-mode-hook
-              (indirect-variable 'magento-cache-clean-mode-hook)))
-  (should (eq 'magento-cache-clean-compilation-mode-map
-              (indirect-variable 'magento-cache-clean-mode-map))))
-
 (ert-deftest magento-cache-clean-test-executable-safe-local ()
   "Only auto and the predefined executables are safe as dir-locals."
   (dolist (v '(auto "vendor/bin/cache-clean.js" "cache-clean" "cache-clean.js"))

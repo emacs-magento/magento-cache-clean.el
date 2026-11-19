@@ -364,13 +364,6 @@ ROOT defaults as in `magento-cache-clean--watch-buffer'."
 
 ;;; Modes
 
-(define-obsolete-function-alias 'magento-cache-clean-mode
-  #'magento-cache-clean-compilation-mode "0.2.0")
-(define-obsolete-variable-alias 'magento-cache-clean-mode-hook
-  'magento-cache-clean-compilation-mode-hook "0.2.0")
-(define-obsolete-variable-alias 'magento-cache-clean-mode-map
-  'magento-cache-clean-compilation-mode-map "0.2.0")
-
 (define-compilation-mode magento-cache-clean-compilation-mode "MagentoCacheClean"
   "Major mode for one-shot magento-cache-clean output."
   ;; `compilation-start' sets the root as `default-directory' first.
@@ -848,10 +841,6 @@ current buffer, even for a root chosen elsewhere."
                            (if choose-root
                                (magento-cache-clean--read-root)
                              (magento-cache-clean--root t)))))
-
-;;;###autoload
-(define-obsolete-function-alias 'magento-cache-clean-transient
-  #'magento-cache-clean-menu "0.2.0")
 
 (provide 'magento-cache-clean)
 ;;; magento-cache-clean.el ends here
