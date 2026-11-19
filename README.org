@@ -191,6 +191,36 @@ root.  They are skipped when Docker isn't available, unless
 =MAGENTO_CACHE_CLEAN_REQUIRE_DOCKER= is set, as in CI.  The image is
 built on first use and rebuilt when its files change.
 
+** Releases
+
+Releases are made by [[https://github.com/googleapis/release-please][release-please]] from [[https://www.conventionalcommits.org/][Conventional Commits]] on
+=main=.  Don't bump =Version:=, edit =CHANGELOG.md= or push =v*= tags by
+hand.
+
+1. Push commits to =main=.  Their types decide the changelog and the
+   next version:
+   - =feat:= adds to Features and bumps the minor version.
+   - =fix:=, =perf:=, =docs:= and =revert:= add to their sections and
+     bump the patch version.
+   - A =!= after the type (=fix!:=, =refactor!:=) marks a breaking
+     change.  Before 1.0 it bumps the minor version.
+   - =refactor:=, =test:=, =build:=, =ci:= and =chore:= stay out of the
+     changelog and don't start a release on their own.
+2. release-please opens a PR (=chore(main): release X.Y.Z=) that bumps
+   =Version:= and adds the =CHANGELOG.md= entry, and updates it on
+   each push.
+3. Merging that PR tags =vX.Y.Z= and creates the GitHub Release.
+
+To release a particular version, push a commit with a =Release-As:=
+footer:
+
+#+begin_src sh
+git commit --allow-empty -m "chore: release 0.3.0" -m "Release-As: 0.3.0"
+#+end_src
+
+Tests don't run on the release PR, as GitHub doesn't start workflows
+for PRs opened by Actions.  They run on =main= after the merge.
+
 * License
 
 GPL-3.0-or-later. See [[file:LICENSE][LICENSE]].
