@@ -3,6 +3,7 @@
 ;; Copyright (C) 2026  Piotr Kwiecinski
 
 ;; Author: Piotr Kwiecinski <piotr.kwiecinski@codemanufacture.com>
+;; Assisted-by: Claude:claude-opus-5-5
 ;; x-release-please-start-version
 ;; Version: 0.1.0
 ;; x-release-please-end
